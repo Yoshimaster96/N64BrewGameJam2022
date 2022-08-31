@@ -1,0 +1,6 @@
+*.o
+data/graphics/*.o
+main.out
+main.z64
+spec.cvt
+session.xml
