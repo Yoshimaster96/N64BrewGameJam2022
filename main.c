@@ -24,6 +24,7 @@ void update_input() {
 //GAME MODES//
 //////////////
 int gameMode = 1;
+int gameSubmode = 0;
 
 void gm_title(int pendingGfx) {
 	//Update graphics

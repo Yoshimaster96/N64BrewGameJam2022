@@ -7,13 +7,13 @@ const Vp vp = {
 	SCREEN_WD*2,SCREEN_HT*2,G_MAXZ/2,0,
 	SCREEN_WD*2,SCREEN_HT*2,G_MAXZ/2,0,
 };
-Lights1 lights = gdSPDefLights1(0x51,0x51,0x51,
-	0xFF,0xFF,0xFF,
-	1,1,1);
+Lights1 lights = gdSPDefLights1(0x00,0x33,0x66,
+	0xFF,0xCC,0x99,
+	64,90,64);
 const Gfx gfxInit[] = {
 	//Init RSP state
 	gsSPViewport(&vp),
-	gsSPClearGeometryMode(G_ZBUFFER|G_SHADE|G_SHADING_SMOOTH|G_CULL_BOTH|G_FOG|G_LIGHTING),
+	gsSPClearGeometryMode(0xFFFFFFFF),
 	gsSPTexture(0,0,0,0,G_OFF),
 	gsSPSetLights1(lights),
 	gsSPFogPosition(996,1000),
@@ -46,12 +46,12 @@ void graphics_clear() {
 	gDPSetCycleType(dlPtr++,G_CYC_FILL);
 	gDPSetColorImage(dlPtr++,G_IM_FMT_RGBA,G_IM_SIZ_16b,SCREEN_WD,
 		OS_K0_TO_PHYSICAL(nuGfxZBuffer));
-	gDPSetFillColor(dlPtr++,GPACK_ZDZ(G_MAXFBZ,0)<<16 | GPACK_ZDZ(G_MAXFBZ,0)<<16);
+	gDPSetFillColor(dlPtr++,GPACK_ZDZ(G_MAXFBZ,0)<<16 | GPACK_ZDZ(G_MAXFBZ,0));
 	gDPFillRectangle(dlPtr++,0,0,SCREEN_WD-1,SCREEN_HT-1);
 	gDPPipeSync(dlPtr++);
 	gDPSetColorImage(dlPtr++,G_IM_FMT_RGBA,G_IM_SIZ_16b,SCREEN_WD,
 		osVirtualToPhysical(nuGfxCfb_ptr));
-	gDPSetFillColor(dlPtr++,GPACK_RGBA5551(0x00,0x00,0x00,1)<<16 | GPACK_RGBA5551(0x00,0x00,0x00,1)<<16);
+	gDPSetFillColor(dlPtr++,GPACK_RGBA5551(0x00,0x00,0x00,1)<<16 | GPACK_RGBA5551(0x00,0x00,0x00,1));
 	gDPFillRectangle(dlPtr++,0,0,SCREEN_WD-1,SCREEN_HT-1);
 	gDPPipeSync(dlPtr++);
 }
@@ -63,9 +63,9 @@ void graphics_view(float* camEye,float* camCenter,float* camUp) {
 	guPerspective(&dynPtr->mProj,&norm,
 		33,(float)SCREEN_WD/(float)SCREEN_HT,10,10000,1.0);
 	guLookAtReflect(&dynPtr->mView,&lookat,
-		camEye[0],camEye[1],camEye[2],
+		camEye   [0],camEye   [1],camEye   [2],
 		camCenter[0],camCenter[1],camCenter[2],
-		camUp[0],camUp[1],camUp[2]);
+		camUp    [0],camUp    [1],camUp    [2]);
 	gSPPerspNormalize(dlPtr++,norm);
 	gSPLookAt(dlPtr++,&lookat);
 	gSPMatrix(dlPtr++,&dynPtr->mProj,G_MTX_PROJECTION|G_MTX_LOAD|G_MTX_NOPUSH);
@@ -73,8 +73,8 @@ void graphics_view(float* camEye,float* camCenter,float* camUp) {
 }
 //End display
 void graphics_end() {
-    gDPFullSync(dlPtr++);
-    gSPEndDisplayList(dlPtr++);
+	gDPFullSync(dlPtr++);
+	gSPEndDisplayList(dlPtr++);
 	//assert((dlPtr-dlBuf[bufferId])<GFX_GLIST_LEN);
 	nuGfxTaskStart(&dlBuf[bufferId][0],(s32)(dlPtr-dlBuf[bufferId])*sizeof(Gfx),NU_GFX_UCODE_F3DEX,NU_SC_SWAPBUFFER);
 	bufferId++;
