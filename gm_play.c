@@ -44,7 +44,7 @@ typedef struct {
 } TLevel;
 const TLevel levelTable[] = {
 	{ 0, 0,gfx_lev_maptest,-0x0800,-0x0800,12,12,col_lev_maptest,obj_lev_maptest},
-	//lev_objtest
+	{ 1, 1,gfx_lev_objtest,-0x0800,-0x0800,16,16,col_lev_objtest,obj_lev_objtest},
 	//lev_demo
 	//lev_tutorial
 	//lev_a1
@@ -56,7 +56,7 @@ const TLevel levelTable[] = {
 	//lev_c2
 	//lev_midpoint
 };
-int levelId = 0;
+int levelId = 1;
 u8 levelNext[2];
 Gfx * levelGfx;
 s16 levelColBaseX,levelColBaseZ;
@@ -189,6 +189,7 @@ void map_collide(int idx) {
 }
 
 //Objects process
+//Player (slime)
 void proc_obj_player(int idx) {
 	s8 sx,sy;
 	float tx,tz;
@@ -196,7 +197,7 @@ void proc_obj_player(int idx) {
 	//Init
 	if(objects[idx].mode==0) {
 		playerObject = &objects[idx];
-		objects[idx].gfx = gfx_player_test;
+		objects[idx].gfx = gfx_chr_slime1;
 		objects[idx].mode = 1;
 	}
 	//Calculate target velocity
@@ -212,10 +213,13 @@ void proc_obj_player(int idx) {
 	objects[idx].vel[0] = 0.875f*objects[idx].vel[0] + 0.125f*tx;
 	objects[idx].vel[2] = 0.875f*objects[idx].vel[2] + 0.125f*tz;
 	//Calculate facing direction
-	v2 = objects[idx].vel[0]*objects[idx].vel[0] + objects[idx].vel[2]*objects[idx].vel[2];
+	v2  = objects[idx].vel[0]*objects[idx].vel[0];
+	v2 += objects[idx].vel[2]*objects[idx].vel[2];
 	if(v2>0.001f) {
 		objects[idx].rot[1] = atan2(objects[idx].vel[0],objects[idx].vel[2]);
 	}
+	//Animate player
+	//TODO
 	//Apply velocity
 	objects[idx].pos[0] += objects[idx].vel[0];
 	objects[idx].pos[1] += objects[idx].vel[1];
@@ -223,32 +227,209 @@ void proc_obj_player(int idx) {
 	//Do map collision
 	map_collide(idx);
 }
+//Ghost
 void proc_obj_ghost(int idx) {
+	//Init
+	if(objects[idx].mode==0) {
+		objects[idx].gfx = gfx_chr_ghost1;
+		objects[idx].mode = 1;
+	}
 	//TODO
 }
+//Zombie
 void proc_obj_zombie(int idx) {
+	//Init
+	if(objects[idx].mode==0) {
+		objects[idx].gfx = gfx_chr_zombie;
+		objects[idx].mode = 1;
+	}
 	//TODO
 }
+//Button
 void proc_obj_button(int idx) {
-	//TODO
+	int i;
+	float di,d2;
+	//Init
+	if(objects[idx].mode==0) {
+		objects[idx].gfx = gfx_obj_button;
+		objects[idx].mode = 1;
+	}
+	//State 0x00: Normal
+	if(objects[idx].state==0) {
+		//Check player collision
+		di = playerObject->pos[0] - objects[idx].pos[0];
+		d2  = di*di;
+		di = playerObject->pos[1] - objects[idx].pos[1];
+		d2 += di*di;
+		di = playerObject->pos[2] - objects[idx].pos[2];
+		d2 += di*di;
+		if(d2<(192.f*192.f)) {
+			//Slow down player
+			playerObject->vel[0] *= 0.5f;
+			playerObject->vel[2] *= 0.5f;
+			//Find associated gates
+			for(i=0; i<OBJ_MAX; i++) {
+				if(objects[i].id   ==0x05 &&
+				   objects[i].param==objects[idx].param) {
+					//Open gate
+					objects[i].state = 1;
+				}
+			}
+			//Set button state
+			objects[idx].state = 1;
+			objects[idx].scl[1] = 0.5f;
+		}
+	}
 }
+//Gate
 void proc_obj_gate(int idx) {
-	//TODO
+	//Init
+	if(objects[idx].mode==0) {
+		objects[idx].gfx = gfx_obj_gate;
+		objects[idx].mode = 1;
+	}
+	//State 0x00: Normal
+	if(objects[idx].state==0) {
+		//Check player collision
+		//TODO
+	}
+	//State 0x01: Open
+	if(objects[idx].state==1) {
+		//Animate gate
+		if(objects[idx].tempsI[0]<(768/16)) {
+			objects[idx].pos[1] += 16.f;
+			objects[idx].tempsI[0]++;
+		}
+	}
 }
+//Tunnel
+const Gfx * tunnelGfxTable[3] = {
+	gfx_obj_tunnel1,
+	gfx_obj_tunnel2,
+	gfx_obj_tunnel3,
+};
+const float tunnelRotTable[4] = {
+	 0.000000f,
+	 1.570796f,
+	 3.141593f,
+	-1.570796f,
+};
 void proc_obj_tunnel(int idx) {
-	//TODO
+	float di,d2;
+	//Init
+	if(objects[idx].mode==0) {
+		objects[idx].gfx = tunnelGfxTable[objects[idx].param>>2];
+		objects[idx].rot[1] = tunnelRotTable[objects[idx].param&3];
+		objects[idx].mode = 1;
+	}
+	//Check player collision
+	di = playerObject->pos[0] - objects[idx].pos[0];
+	d2  = di*di;
+	di = playerObject->pos[1] - objects[idx].pos[1];
+	d2 += di*di;
+	di = playerObject->pos[2] - objects[idx].pos[2];
+	d2 += di*di;
+	if(d2<(96.f*96.f)) {
+		//Check if entering
+		//TODO
+		//Eject player
+		//TODO
+	}
 }
+//Fence
 void proc_obj_fence(int idx) {
+	//Init
+	if(objects[idx].mode==0) {
+		objects[idx].gfx = gfx_obj_fence;
+		objects[idx].mode = 1;
+	}
+	//Check player collision
 	//TODO
 }
+//Rock
 void proc_obj_rock(int idx) {
-	//TODO
+	float di[3];
+	float d,d2;
+	//Init
+	if(objects[idx].mode==0) {
+		objects[idx].gfx = gfx_obj_rock;
+		objects[idx].mode = 1;
+	}
+	//Check player collision
+	di[0] = playerObject->pos[0] - objects[idx].pos[0];
+	d2  = di[0]*di[0];
+	di[1] = playerObject->pos[1] - objects[idx].pos[1];
+	d2 += di[1]*di[1];
+	di[2] = playerObject->pos[2] - objects[idx].pos[2];
+	d2 += di[2]*di[2];
+	if(d2<(192.f*192.f)) {
+		//Eject player
+		d = sqrt(d2);
+		playerObject->pos[0] = objects[idx].pos[0] + di[0]*192.f/d;
+		playerObject->pos[1] = objects[idx].pos[1] + di[1]*192.f/d;
+		playerObject->pos[2] = objects[idx].pos[2] + di[2]*192.f/d;
+	}
 }
+//Key
+const Gfx * keyGfxTable[2] = {
+	gfx_obj_key1,
+	gfx_obj_key2,
+};
 void proc_obj_key(int idx) {
-	//TODO
+	float di[3];
+	float d,d2;
+	//Init
+	if(objects[idx].mode==0) {
+		objects[idx].gfx = keyGfxTable[objects[idx].param];
+		objects[idx].mode = 1;
+	}
+	//Check player collision
+	di[0] = playerObject->pos[0] - objects[idx].pos[0];
+	d2  = di[0]*di[0];
+	di[1] = playerObject->pos[1] - objects[idx].pos[1];
+	d2 += di[1]*di[1];
+	di[2] = playerObject->pos[2] - objects[idx].pos[2];
+	d2 += di[2]*di[2];
+	if(d2<(192.f*192.f)) {
+		//Eject player
+		d = sqrt(d2);
+		playerObject->pos[0] = objects[idx].pos[0] + di[0]*192.f/d;
+		playerObject->pos[1] = objects[idx].pos[1] + di[1]*192.f/d;
+		playerObject->pos[2] = objects[idx].pos[2] + di[2]*192.f/d;
+	}
 }
+//Gem
+const Gfx * gemGfxTable[7] = {
+	gfx_obj_gem1,
+	gfx_obj_gem2,
+	gfx_obj_gem3,
+	gfx_obj_gem4,
+	gfx_obj_gmet1,
+	gfx_obj_gmet2,
+	gfx_obj_gpearl,
+};
 void proc_obj_gem(int idx) {
-	//TODO
+	float di[3];
+	float d,d2;
+	//Init
+	if(objects[idx].mode==0) {
+		objects[idx].gfx = gemGfxTable[objects[idx].param];
+		objects[idx].mode = 1;
+	}
+	//Check player collision
+	di[0] = playerObject->pos[0] - objects[idx].pos[0];
+	d2  = di[0]*di[0];
+	di[1] = playerObject->pos[1] - objects[idx].pos[1];
+	d2 += di[1]*di[1];
+	di[2] = playerObject->pos[2] - objects[idx].pos[2];
+	d2 += di[2]*di[2];
+	if(d2<(192.f*192.f)) {
+		//Eject player
+		d = sqrt(d2);
+		playerObject->pos[0] = objects[idx].pos[0] + di[0]*192.f/d;
+		playerObject->pos[1] = objects[idx].pos[1] + di[1]*192.f/d;
+		playerObject->pos[2] = objects[idx].pos[2] + di[2]*192.f/d;
+	}
 }
 void (*procObjFuncs[12])(int idx) = {
 	proc_obj_player,	//0x00: Player (slime)
@@ -279,6 +460,9 @@ void gm_play_proc() {
 	switch(gameSubmode) {
 		//Init
 		case 0: {
+			//Load banks
+			bank_load(1);
+			bank_load(levelId+4);
 			//Load level
 			levelNext[0] = levelTable[levelId].next[0];
 			levelNext[1] = levelTable[levelId].next[1];
@@ -341,37 +525,11 @@ void gm_play_proc() {
 /////////////////////
 //DISPLAY FUNCTIONS//
 /////////////////////
-void gu_rotate_yxz(Mtx * m,float x,float y,float z) {
-	float mf[4][4];
-	float sx,cx;
-	float sy,cy;
-	float sz,cz;
-	//Calculate sin/cos
-	sx = sin(x);
-	cx = cos(x);
-	sy = sin(y);
-	cy = cos(y);
-	sz = sin(z);
-	cz = cos(z);
-	//Calculate matrix
-	guMtxIdentF(mf);
-	mf[0][0] = (cy*cz)-(sx*sy*sz);
-	mf[0][1] = (cy*sz)+(cz*sx*sy);
-	mf[0][2] = -cx*sy;
-	mf[1][0] = -cx*sz;
-	mf[1][1] = cx*cz;
-	mf[1][2] = sx;
-	mf[2][0] = (cz*sy)+(cy*sx*sz);
-	mf[2][1] = (sy*sz)-(cy*cz*sx);
-	mf[2][2] = cx*cy;
-	guMtxF2L(mf,m);
-}
-
 void gm_play_disp_level() {
 	//Calculate model matrix
-	guTranslate  (&dynPtr->mLevelPos,0.f,0.f,0.f);
-	gu_rotate_yxz(&dynPtr->mLevelRot,0.f,0.f,0.f);
-	guScale      (&dynPtr->mLevelScl,1.f,1.f,1.f);
+	guTranslate    (&dynPtr->mLevelPos,0.f,0.f,0.f);
+	graphics_rotate(&dynPtr->mLevelRot,0.f,0.f,0.f);
+	guScale        (&dynPtr->mLevelScl,1.f,1.f,1.f);
 	gSPMatrix(dlPtr++,OS_K0_TO_PHYSICAL(&dynPtr->mLevelPos),G_MTX_MODELVIEW|G_MTX_LOAD|G_MTX_NOPUSH);
 	gSPMatrix(dlPtr++,OS_K0_TO_PHYSICAL(&dynPtr->mLevelRot),G_MTX_MODELVIEW|G_MTX_MUL |G_MTX_NOPUSH);
 	gSPMatrix(dlPtr++,OS_K0_TO_PHYSICAL(&dynPtr->mLevelScl),G_MTX_MODELVIEW|G_MTX_MUL |G_MTX_NOPUSH);
@@ -379,7 +537,7 @@ void gm_play_disp_level() {
 	gDPSetCycleType(dlPtr++,G_CYC_1CYCLE);
 	gSPClearGeometryMode(dlPtr++,0xFFFFFFFF);
 	gSPSetGeometryMode(dlPtr++,G_LIGHTING|G_ZBUFFER|G_SHADE|G_SHADING_SMOOTH|G_CULL_BACK);
-	gDPSetRenderMode(dlPtr++,G_RM_ZB_OPA_SURF,G_RM_ZB_OPA_SURF2);
+	gDPSetRenderMode(dlPtr++,G_RM_AA_ZB_OPA_SURF,G_RM_AA_ZB_OPA_SURF2);
 	gDPSetColorDither(dlPtr++,G_CD_BAYER);
 	gDPSetCombineMode(dlPtr++,G_CC_MODULATERGBA,G_CC_MODULATERGBA);
 	gDPSetTexturePersp(dlPtr++,G_TP_PERSP);
@@ -394,9 +552,9 @@ void gm_play_disp_objs() {
 	int i;
 	for(i=0; i<OBJ_MAX; i++) {
 		//Calculate model matrix
-		guTranslate  (&dynPtr->mObjPos[i],objects[i].pos[0],objects[i].pos[1],objects[i].pos[2]);
-		gu_rotate_yxz(&dynPtr->mObjRot[i],objects[i].rot[0],objects[i].rot[1],objects[i].rot[2]);
-		guScale      (&dynPtr->mObjScl[i],objects[i].scl[0],objects[i].scl[1],objects[i].scl[2]);
+		guTranslate    (&dynPtr->mObjPos[i],objects[i].pos[0],objects[i].pos[1],objects[i].pos[2]);
+		graphics_rotate(&dynPtr->mObjRot[i],objects[i].rot[0],objects[i].rot[1],objects[i].rot[2]);
+		guScale        (&dynPtr->mObjScl[i],objects[i].scl[0],objects[i].scl[1],objects[i].scl[2]);
 		gSPMatrix(dlPtr++,OS_K0_TO_PHYSICAL(&dynPtr->mObjPos[i]),G_MTX_MODELVIEW|G_MTX_LOAD|G_MTX_NOPUSH);
 		gSPMatrix(dlPtr++,OS_K0_TO_PHYSICAL(&dynPtr->mObjRot[i]),G_MTX_MODELVIEW|G_MTX_MUL |G_MTX_NOPUSH);
 		gSPMatrix(dlPtr++,OS_K0_TO_PHYSICAL(&dynPtr->mObjScl[i]),G_MTX_MODELVIEW|G_MTX_MUL |G_MTX_NOPUSH);
@@ -412,18 +570,18 @@ void gm_play_disp() {
 	float up[3];
 	//Setup camera position
 	eye[0] = 0.f;
-	eye[1] = 4096.f;
-	eye[2] = 0.f;
+	eye[1] = 1024.f;
+	eye[2] = 1024.f;
 	center[0] = 0.f;
 	center[1] = 0.f;
 	center[2] = 0.f;
-	up[0] = 0.f;
-	up[1] = 0.f;
-	up[2] = -1.f;
+	up[0] =  0.000000f;
+	up[1] =  0.707107f;
+	up[2] = -0.707107f;
 	//Focus on player
 	if(playerObject!=NULL) {
 		eye[0] = playerObject->pos[0];
-		eye[2] = playerObject->pos[2];
+		eye[2] = playerObject->pos[2]+1024.f;
 		center[0] = playerObject->pos[0];
 		center[2] = playerObject->pos[2];
 	}

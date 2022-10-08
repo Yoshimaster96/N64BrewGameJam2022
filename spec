@@ -46,6 +46,56 @@ beginseg
 	include "data/sound/se.tbl" 
 endseg*/
 
+//Common and mode graphics
+/*beginseg
+	name "gm_title"
+	flags OBJECT
+	address 0x80200000
+	include "data/graphics/scr_title.o"
+endseg*/
+beginseg
+	name "gm_play"
+	flags OBJECT
+	address 0x80200000
+	include "data/graphics/chr_slime.o"
+	include "data/graphics/chr_ghost.o"
+	include "data/graphics/chr_zombie.o"
+	include "data/graphics/tex_chr_eye.o"
+	include "data/graphics/obj_button.o"
+	include "data/graphics/obj_gate.o"
+	include "data/graphics/obj_tunnel.o"
+	include "data/graphics/obj_fence.o"
+	include "data/graphics/obj_rock.o"
+	include "data/graphics/obj_key.o"
+	include "data/graphics/obj_gem.o"
+endseg
+/*beginseg
+	name "gm_over"
+	flags OBJECT
+	address 0x80200000
+	include "data/graphics/scr_over.o"
+endseg*/
+/*beginseg
+	name "gm_ending"
+	flags OBJECT
+	address 0x80200000
+	include "data/graphics/scr_ending.o"
+endseg*/
+
+//Level graphics
+beginseg
+	name "lev_maptest"
+	flags OBJECT
+	address 0x80280000
+	include "data/graphics/lev_maptest.o"
+endseg
+beginseg
+	name "lev_objtest"
+	flags OBJECT
+	address 0x80280000
+	include "data/graphics/lev_objtest.o"
+endseg
+
 ////////
 //WAVE//
 ////////
@@ -57,4 +107,10 @@ beginwave
 	//include "bgmtable"
 	//include "sebank"
 	//include "setable"
+	//include "gm_title"
+	include "gm_play"
+	//include "gm_over"
+	//include "gm_ending"
+	include "lev_maptest"
+	include "lev_objtest"
 endwave

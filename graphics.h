@@ -4,6 +4,7 @@
 //Includes
 #include <ultra64.h>
 #include <nusys.h>
+#include <math.h>
 
 //Defines
 #define SCREEN_HT	240
@@ -38,6 +39,7 @@ extern u8 bufferId;
 void graphics_init();
 void graphics_clear();
 void graphics_view(float* camEye,float* camCenter,float* camUp);
+void graphics_rotate(Mtx * m,float x,float y,float z);
 void graphics_end();
 
 #endif

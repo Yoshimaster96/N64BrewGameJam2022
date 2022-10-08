@@ -64,6 +64,8 @@ void gm_ending(int pendingGfx) {
 ////////////////
 //Entry point
 void mainproc() {
+	//Init banks
+	bank_init();
 	//Init GFX
 	nuGfxInit();
 	//Init controller

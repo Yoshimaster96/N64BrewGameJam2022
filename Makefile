@@ -40,11 +40,14 @@ CFILES		= $(C_ROOT_FILES) $(C_GFX_FILES)
 H_ROOT_FILES	= $(wildcard *.h)
 H_GFX_FILES		= $(wildcard data/graphics/*.h)
 HFILES		= $(H_ROOT_FILES) $(H_GFX_FILES)
-CODEOBJECTS	= $(CFILES:.c=.o) $(NUSYSLIBDIR)/nusys.o
+CODEOBJECTS	= $(C_ROOT_FILES:.c=.o) $(NUSYSLIBDIR)/nusys.o
 CODESEGMENT = codesegment.o
 
+#data segments
+DATAOBJECTS = $(C_GFX_FILES:.c=.o)
+
 #all objects
-OBJECTS 	= $(CODESEGMENT)
+OBJECTS 	= $(CODESEGMENT) $(DATAOBJECTS)
 
 ##############
 #BUILDING ROM#

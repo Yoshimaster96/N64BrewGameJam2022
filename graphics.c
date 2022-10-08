@@ -61,7 +61,7 @@ void graphics_view(float* camEye,float* camCenter,float* camUp) {
 	LookAt lookat;
 	//Calculate matrix
 	guPerspective(&dynPtr->mProj,&norm,
-		33,(float)SCREEN_WD/(float)SCREEN_HT,10,10000,1.0);
+		45,(float)SCREEN_WD/(float)SCREEN_HT,10,10000,1.0);
 	guLookAtReflect(&dynPtr->mView,&lookat,
 		camEye   [0],camEye   [1],camEye   [2],
 		camCenter[0],camCenter[1],camCenter[2],
@@ -70,6 +70,32 @@ void graphics_view(float* camEye,float* camCenter,float* camUp) {
 	gSPLookAt(dlPtr++,&lookat);
 	gSPMatrix(dlPtr++,&dynPtr->mProj,G_MTX_PROJECTION|G_MTX_LOAD|G_MTX_NOPUSH);
 	gSPMatrix(dlPtr++,&dynPtr->mView,G_MTX_PROJECTION|G_MTX_MUL |G_MTX_NOPUSH);
+}
+//Setup rotate matrix
+void graphics_rotate(Mtx * m,float x,float y,float z) {
+	float mf[4][4];
+	float sx,cx;
+	float sy,cy;
+	float sz,cz;
+	//Calculate sin/cos
+	sx = sin(x);
+	cx = cos(x);
+	sy = sin(y);
+	cy = cos(y);
+	sz = sin(z);
+	cz = cos(z);
+	//Calculate matrix
+	guMtxIdentF(mf);
+	mf[0][0] = (cy*cz)-(sx*sy*sz);
+	mf[0][1] = (cy*sz)+(cz*sx*sy);
+	mf[0][2] = -cx*sy;
+	mf[1][0] = -cx*sz;
+	mf[1][1] = cx*cz;
+	mf[1][2] = sx;
+	mf[2][0] = (cz*sy)+(cy*sx*sz);
+	mf[2][1] = (sy*sz)-(cy*cz*sx);
+	mf[2][2] = cx*cy;
+	guMtxF2L(mf,m);
 }
 //End display
 void graphics_end() {
