@@ -50,13 +50,13 @@ endseg*/
 /*beginseg
 	name "gm_title"
 	flags OBJECT
-	address 0x80200000
+	address 0x80180000
 	include "data/graphics/scr_title.o"
 endseg*/
 beginseg
 	name "gm_play"
 	flags OBJECT
-	address 0x80200000
+	address 0x80180000
 	include "data/graphics/chr_slime.o"
 	include "data/graphics/chr_ghost.o"
 	include "data/graphics/chr_zombie.o"
@@ -68,17 +68,29 @@ beginseg
 	include "data/graphics/obj_rock.o"
 	include "data/graphics/obj_key.o"
 	include "data/graphics/obj_gem.o"
+	include "data/graphics/act_chr_slime_idle.o"
+	include "data/graphics/act_chr_slime_move.o"
+	include "data/graphics/act_chr_slime_idle_s.o"
+	include "data/graphics/act_chr_slime_move_s.o"
+	include "data/graphics/act_chr_slime_swallow.o"
+	include "data/graphics/act_chr_slime_spit.o"
+	include "data/graphics/act_chr_ghost_idle.o"
+	include "data/graphics/act_chr_ghost_move.o"
+	include "data/graphics/act_chr_ghost_chase.o"
+	include "data/graphics/act_chr_zombie_idle.o"
+	include "data/graphics/act_chr_zombie_move.o"
+	include "data/graphics/act_chr_zombie_chase.o"
 endseg
 /*beginseg
 	name "gm_over"
 	flags OBJECT
-	address 0x80200000
+	address 0x80180000
 	include "data/graphics/scr_over.o"
 endseg*/
 /*beginseg
 	name "gm_ending"
 	flags OBJECT
-	address 0x80200000
+	address 0x80180000
 	include "data/graphics/scr_ending.o"
 endseg*/
 

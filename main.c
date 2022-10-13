@@ -23,15 +23,15 @@ void update_input() {
 //////////////
 //GAME MODES//
 //////////////
-int gameMode = 1;
+volatile int gameMode = 4;
 int gameSubmode = 0;
 
 void gm_title(int pendingGfx) {
 	//Update graphics
 	if(pendingGfx<2) {
-		//gm_title_disp();
+		gm_title_disp();
 		update_input();
-		//gm_title_proc();
+		gm_title_proc();
 	}
 }
 void gm_play(int pendingGfx) {
@@ -45,17 +45,25 @@ void gm_play(int pendingGfx) {
 void gm_over(int pendingGfx) {
 	//Update graphics
 	if(pendingGfx<2) {
-		//gm_over_disp();
+		gm_over_disp();
 		update_input();
-		//gm_over_proc();
+		gm_over_proc();
 	}
 }
 void gm_ending(int pendingGfx) {
 	//Update graphics
 	if(pendingGfx<2) {
-		//gm_ending_disp();
+		gm_ending_disp();
 		update_input();
-		//gm_ending_proc();
+		gm_ending_proc();
+	}
+}
+void gm_debug(int pendingGfx) {
+	//Update graphics
+	if(pendingGfx<2) {
+		gm_debug_disp();
+		update_input();
+		gm_debug_proc();
 	}
 }
 
@@ -88,7 +96,7 @@ void mainproc() {
 				gameMode = -1;
 				//nuAuSeqPlayerSetNo(0,0);
 				//nuAuSeqPlayerPlay(0);
-				//nuGfxFuncSet((NUGfxFunc)gm_title);
+				nuGfxFuncSet((NUGfxFunc)gm_title);
 				nuGfxDisplayOn();
 				break;
 			}
@@ -106,7 +114,7 @@ void mainproc() {
 				gameMode = -1;
 				//nuAuSeqPlayerSetNo(2,0);
 				//nuAuSeqPlayerPlay(0);
-				//nuGfxFuncSet((NUGfxFunc)gm_over);
+				nuGfxFuncSet((NUGfxFunc)gm_over);
 				nuGfxDisplayOn();
 				break;
 			}
@@ -115,11 +123,16 @@ void mainproc() {
 				gameMode = -1;
 				//nuAuSeqPlayerSetNo(3,0);
 				//nuAuSeqPlayerPlay(0);
-				//nuGfxFuncSet((NUGfxFunc)gm_ending);
+				nuGfxFuncSet((NUGfxFunc)gm_ending);
 				nuGfxDisplayOn();
 				break;
 			}
-			default: {
+			//Debug
+			case 4: {
+				gameMode = -1;
+				//nuAuSeqPlayerStop(0);
+				nuGfxFuncSet((NUGfxFunc)gm_debug);
+				nuGfxDisplayOn();
 				break;
 			}
 		}

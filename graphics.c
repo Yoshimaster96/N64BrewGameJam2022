@@ -55,6 +55,21 @@ void graphics_clear() {
 	gDPFillRectangle(dlPtr++,0,0,SCREEN_WD-1,SCREEN_HT-1);
 	gDPPipeSync(dlPtr++);
 }
+//Setup render settings
+void graphics_setup() {
+	gDPSetCycleType(dlPtr++,G_CYC_1CYCLE);
+	gSPClearGeometryMode(dlPtr++,0xFFFFFFFF);
+	gSPSetGeometryMode(dlPtr++,G_LIGHTING|G_ZBUFFER|G_SHADE|G_SHADING_SMOOTH|G_CULL_BACK);
+	gDPSetRenderMode(dlPtr++,G_RM_AA_ZB_OPA_SURF,G_RM_AA_ZB_OPA_SURF2);
+	gDPSetColorDither(dlPtr++,G_CD_BAYER);
+	gDPSetCombineMode(dlPtr++,G_CC_MODULATERGBA,G_CC_MODULATERGBA);
+	gDPSetTexturePersp(dlPtr++,G_TP_PERSP);
+	gDPSetTextureLOD(dlPtr++,G_TL_TILE);
+	gDPSetTextureFilter(dlPtr++,G_TF_POINT);
+	gDPSetTextureConvert(dlPtr++,G_TC_FILT);
+	gDPSetTextureLUT(dlPtr++,G_TT_NONE);
+	gSPTexture(dlPtr++,0x8000,0x8000,0,G_TX_RENDERTILE,G_ON);
+}
 //Setup view matrix
 void graphics_view(float* camEye,float* camCenter,float* camUp) {
 	u16 norm;
@@ -72,7 +87,7 @@ void graphics_view(float* camEye,float* camCenter,float* camUp) {
 	gSPMatrix(dlPtr++,&dynPtr->mView,G_MTX_PROJECTION|G_MTX_MUL |G_MTX_NOPUSH);
 }
 //Setup rotate matrix
-void graphics_rotate(Mtx * m,float x,float y,float z) {
+void graphics_rotate(Mtx* m,float x,float y,float z) {
 	float mf[4][4];
 	float sx,cx;
 	float sy,cy;
@@ -98,11 +113,21 @@ void graphics_rotate(Mtx * m,float x,float y,float z) {
 	guMtxF2L(mf,m);
 }
 //End display
-void graphics_end() {
+void graphics_end(u32 flag) {
 	gDPFullSync(dlPtr++);
 	gSPEndDisplayList(dlPtr++);
 	//assert((dlPtr-dlBuf[bufferId])<GFX_GLIST_LEN);
-	nuGfxTaskStart(&dlBuf[bufferId][0],(s32)(dlPtr-dlBuf[bufferId])*sizeof(Gfx),NU_GFX_UCODE_F3DEX,NU_SC_SWAPBUFFER);
-	bufferId++;
-	bufferId %= GFX_GTASK_NUM;
+	nuGfxTaskStart(&dlBuf[bufferId][0],(s32)(dlPtr-dlBuf[bufferId])*sizeof(Gfx),NU_GFX_UCODE_F3DEX,flag);
+	if(flag==NU_SC_SWAPBUFFER) {
+		bufferId++;
+		bufferId %= GFX_GTASK_NUM;
+	}
+}
+//End display (debug console)
+void graphics_end_deb_con(u32 flag) {
+	nuDebConDisp(flag);
+	if(flag==NU_SC_SWAPBUFFER) {
+		bufferId++;
+		bufferId %= GFX_GTASK_NUM;
+	}
 }

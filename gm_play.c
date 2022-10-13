@@ -4,7 +4,7 @@ extern u8 joy1Pattern;
 extern NUContData joy1Data;
 extern u16 joy1ButtonPrev,joy1ButtonDown,joy1ButtonUp;
 
-extern int gameMode;
+volatile extern int gameMode;
 extern int gameSubmode;
 
 /////////////////////
@@ -32,7 +32,6 @@ TObject objects[OBJ_MAX];
 TObject * playerObject;
 //Level
 typedef struct {
-	u8 next[2];
 	//Graphics
 	Gfx * gfx;
 	//Collision
@@ -43,8 +42,8 @@ typedef struct {
 	TLevelObject * objs;
 } TLevel;
 const TLevel levelTable[] = {
-	{ 0, 0,gfx_lev_maptest,-0x0800,-0x0800,12,12,col_lev_maptest,obj_lev_maptest},
-	{ 1, 1,gfx_lev_objtest,-0x0800,-0x0800,16,16,col_lev_objtest,obj_lev_objtest},
+	{gfx_lev_maptest,-0x0800,-0x0800,12,12,col_lev_maptest,obj_lev_maptest},
+	{gfx_lev_objtest,-0x0800,-0x0800,16,16,col_lev_objtest,obj_lev_objtest},
 	//lev_demo
 	//lev_tutorial
 	//lev_a1
@@ -56,8 +55,7 @@ const TLevel levelTable[] = {
 	//lev_c2
 	//lev_midpoint
 };
-int levelId = 1;
-u8 levelNext[2];
+int levelId = 0;
 Gfx * levelGfx;
 s16 levelColBaseX,levelColBaseZ;
 s16 levelColSizeX,levelColSizeZ;
@@ -134,10 +132,12 @@ void map_collide(int idx) {
 		objects[idx].vel[1] -= 2.f;
 		objects[idx].rot[0] = 0.f;
 		objects[idx].rot[2] = 0.f;
-	} else if((sy1-sy0)>24) {
+	}
+	else if((sy1-sy0)>24) {
 		//Floor above
 		objects[idx].vel[1] = 0.f;
-	} else {
+	}
+	else {
 		//Floor OK
 		objects[idx].pos[1] = (float)sy1;
 		sy0 = sy1;
@@ -145,45 +145,87 @@ void map_collide(int idx) {
 	}
 	//Check wall collisions
 	//Check right
-	if((sx&0xFF)>0xA0) {
-		syw0 = map_get_height((sx&~0xFF)+0x0FF,sz,NULL);
-		syw1 = map_get_height((sx&~0xFF)+0x100,sz,NULL);
+	if((sx&0xFF)>0xA0 && objects[idx].vel[0]>0.f) {
+		//Bottom right
+		syw0 = map_get_height((sx&~0xFF)+0x0FF,sz+0x48,NULL);
+		syw1 = map_get_height((sx&~0xFF)+0x100,sz+0x48,NULL);
 		if((syw1-syw0)>24 && (syw1-sy0)>24) {
 			sx &= ~0xFF;
 			sx |= 0xA0;
 			objects[idx].pos[0] = (float)sx;
-			if(objects[idx].vel[0]>0.f) objects[idx].vel[0] = 0.f;
+			objects[idx].vel[0] = 0.f;
 		}
+		//Top right
+		syw0 = map_get_height((sx&~0xFF)+0x0FF,sz-0x48,NULL);
+		syw1 = map_get_height((sx&~0xFF)+0x100,sz-0x48,NULL);
+		if((syw1-syw0)>24 && (syw1-sy0)>24) {
+			sx &= ~0xFF;
+			sx |= 0xA0;
+			objects[idx].pos[0] = (float)sx;
+			objects[idx].vel[0] = 0.f;
+		}
+	}
 	//Check left
-	} else if((sx&0xFF)<0x60) {
-		syw0 = map_get_height((sx&~0xFF)-0,sz,NULL);
-		syw1 = map_get_height((sx&~0xFF)-1,sz,NULL);
+	if((sx&0xFF)<0x60 && objects[idx].vel[0]<0.f) {
+		//Bottom left
+		syw0 = map_get_height((sx&~0xFF)-0,sz+0x48,NULL);
+		syw1 = map_get_height((sx&~0xFF)-1,sz+0x48,NULL);
 		if((syw1-syw0)>24 && (syw1-sy0)>24) {
 			sx &= ~0xFF;
 			sx |= 0x60;
 			objects[idx].pos[0] = (float)sx;
-			if(objects[idx].vel[0]<0.f) objects[idx].vel[0] = 0.f;
+			objects[idx].vel[0] = 0.f;
+		}
+		//Top left
+		syw0 = map_get_height((sx&~0xFF)-0,sz-0x48,NULL);
+		syw1 = map_get_height((sx&~0xFF)-1,sz-0x48,NULL);
+		if((syw1-syw0)>24 && (syw1-sy0)>24) {
+			sx &= ~0xFF;
+			sx |= 0x60;
+			objects[idx].pos[0] = (float)sx;
+			objects[idx].vel[0] = 0.f;
 		}
 	}
 	//Check bottom
-	if((sz&0xFF)>0xA0) {
-		syw0 = map_get_height(sx,(sz&~0xFF)+0x0FF,NULL);
-		syw1 = map_get_height(sx,(sz&~0xFF)+0x100,NULL);
+	if((sz&0xFF)>0xA0 && objects[idx].vel[2]>0.f) {
+		//Right bottom
+		syw0 = map_get_height(sx+0x48,(sz&~0xFF)+0x0FF,NULL);
+		syw1 = map_get_height(sx+0x48,(sz&~0xFF)+0x100,NULL);
 		if((syw1-syw0)>24 && (syw1-sy0)>24) {
 			sz &= ~0xFF;
 			sz |= 0xA0;
 			objects[idx].pos[2] = (float)sz;
-			if(objects[idx].vel[2]>0.f) objects[idx].vel[2] = 0.f;
+			objects[idx].vel[2] = 0.f;
 		}
+		//Left bottom
+		syw0 = map_get_height(sx-0x48,(sz&~0xFF)+0x0FF,NULL);
+		syw1 = map_get_height(sx-0x48,(sz&~0xFF)+0x100,NULL);
+		if((syw1-syw0)>24 && (syw1-sy0)>24) {
+			sz &= ~0xFF;
+			sz |= 0xA0;
+			objects[idx].pos[2] = (float)sz;
+			objects[idx].vel[2] = 0.f;
+		}
+	}
 	//Check top
-	} else if((sz&0xFF)<0x60) {
-		syw0 = map_get_height(sx,(sz&~0xFF)-0,NULL);
-		syw1 = map_get_height(sx,(sz&~0xFF)-1,NULL);
+	if((sz&0xFF)<0x60 && objects[idx].vel[2]<0.f) {
+		//Right top
+		syw0 = map_get_height(sx+0x48,(sz&~0xFF)-0,NULL);
+		syw1 = map_get_height(sx+0x48,(sz&~0xFF)-1,NULL);
 		if((syw1-syw0)>24 && (syw1-sy0)>24) {
 			sz &= ~0xFF;
 			sz |= 0x60;
 			objects[idx].pos[2] = (float)sz;
-			if(objects[idx].vel[2]<0.f) objects[idx].vel[2] = 0.f;
+			objects[idx].vel[2] = 0.f;
+		}
+		//Left top
+		syw0 = map_get_height(sx-0x48,(sz&~0xFF)-0,NULL);
+		syw1 = map_get_height(sx-0x48,(sz&~0xFF)-1,NULL);
+		if((syw1-syw0)>24 && (syw1-sy0)>24) {
+			sz &= ~0xFF;
+			sz |= 0x60;
+			objects[idx].pos[2] = (float)sz;
+			objects[idx].vel[2] = 0.f;
 		}
 	}
 }
@@ -197,7 +239,7 @@ void proc_obj_player(int idx) {
 	//Init
 	if(objects[idx].mode==0) {
 		playerObject = &objects[idx];
-		objects[idx].gfx = gfx_chr_slime1;
+		objects[idx].gfx = gfx_chr_slime;
 		objects[idx].mode = 1;
 	}
 	//Calculate target velocity
@@ -231,7 +273,7 @@ void proc_obj_player(int idx) {
 void proc_obj_ghost(int idx) {
 	//Init
 	if(objects[idx].mode==0) {
-		objects[idx].gfx = gfx_chr_ghost1;
+		objects[idx].gfx = gfx_chr_ghost;
 		objects[idx].mode = 1;
 	}
 	//TODO
@@ -283,6 +325,7 @@ void proc_obj_button(int idx) {
 }
 //Gate
 void proc_obj_gate(int idx) {
+	float di[3];
 	//Init
 	if(objects[idx].mode==0) {
 		objects[idx].gfx = gfx_obj_gate;
@@ -291,7 +334,17 @@ void proc_obj_gate(int idx) {
 	//State 0x00: Normal
 	if(objects[idx].state==0) {
 		//Check player collision
-		//TODO
+		di[0] = playerObject->pos[0] - objects[idx].pos[0];
+		di[1] = playerObject->pos[1] - objects[idx].pos[1];
+		di[2] = playerObject->pos[2] - objects[idx].pos[2];
+		if(di[0]>(-256.f-96.f) && di[0]<(256.f+96.f) && di[1]>-192.f && di[1]<512.f) {
+			if(di[2]>0.f && di[2]<96.f) {
+				playerObject->pos[2] = objects[idx].pos[2]+96.f;
+			}
+			else if(di[2]<0.f && di[2]>-96.f) {
+				playerObject->pos[2] = objects[idx].pos[2]-96.f;
+			}
+		}
 	}
 	//State 0x01: Open
 	if(objects[idx].state==1) {
@@ -315,7 +368,8 @@ const float tunnelRotTable[4] = {
 	-1.570796f,
 };
 void proc_obj_tunnel(int idx) {
-	float di,d2;
+	float di[3];
+	float dia[3];
 	//Init
 	if(objects[idx].mode==0) {
 		objects[idx].gfx = tunnelGfxTable[objects[idx].param>>2];
@@ -323,17 +377,29 @@ void proc_obj_tunnel(int idx) {
 		objects[idx].mode = 1;
 	}
 	//Check player collision
-	di = playerObject->pos[0] - objects[idx].pos[0];
-	d2  = di*di;
-	di = playerObject->pos[1] - objects[idx].pos[1];
-	d2 += di*di;
-	di = playerObject->pos[2] - objects[idx].pos[2];
-	d2 += di*di;
-	if(d2<(96.f*96.f)) {
+	di[0] = playerObject->pos[0] - objects[idx].pos[0];
+	dia[0] = fabs(di[0]);
+	di[1] = playerObject->pos[1] - objects[idx].pos[1];
+	dia[1] = fabs(di[1]);
+	di[2] = playerObject->pos[2] - objects[idx].pos[2];
+	dia[2] = fabs(di[2]);
+	if(dia[0]<256.f && dia[1]<256.f && dia[2]<256.f) {
 		//Check if entering
-		//TODO
-		//Eject player
-		//TODO
+		if(dia[0]>dia[1] && dia[0]>dia[2]) {
+			if(objects[idx].param==0x01 || objects[idx].param==0x03) {
+				//Check if entering X
+				//TODO
+			}
+		}
+		else if(dia[1]>dia[2]) {
+			//Nothing
+		}
+		else {
+			if(objects[idx].param==0x00 || objects[idx].param==0x02) {
+				//Check if entering Z
+				//TODO
+			}
+		}
 	}
 }
 //Fence
@@ -343,8 +409,6 @@ void proc_obj_fence(int idx) {
 		objects[idx].gfx = gfx_obj_fence;
 		objects[idx].mode = 1;
 	}
-	//Check player collision
-	//TODO
 }
 //Rock
 void proc_obj_rock(int idx) {
@@ -431,7 +495,7 @@ void proc_obj_gem(int idx) {
 		playerObject->pos[2] = objects[idx].pos[2] + di[2]*192.f/d;
 	}
 }
-void (*procObjFuncs[12])(int idx) = {
+void (*procObjFuncs[16])(int idx) = {
 	proc_obj_player,	//0x00: Player (slime)
 	NULL,				//0x01: (DUMMY FOR ALIGNMENT)
 	proc_obj_ghost,		//0x02: Ghost
@@ -444,6 +508,10 @@ void (*procObjFuncs[12])(int idx) = {
 	proc_obj_key,		//0x09: Key
 	proc_obj_gem,		//0x0A: Gem
 	NULL,				//0x0B: (DUMMY FOR ALIGNMENT)
+	NULL,				//0x0C: (DUMMY FOR ALIGNMENT)
+	NULL,				//0x0D: (DUMMY FOR ALIGNMENT)
+	NULL,				//0x0E: (DUMMY FOR ALIGNMENT)
+	NULL,				//0x0F: (DUMMY FOR ALIGNMENT)
 };
 void gm_play_proc_objs() {
 	int i;
@@ -464,8 +532,6 @@ void gm_play_proc() {
 			bank_load(1);
 			bank_load(levelId+4);
 			//Load level
-			levelNext[0] = levelTable[levelId].next[0];
-			levelNext[1] = levelTable[levelId].next[1];
 			levelGfx = levelTable[levelId].gfx;
 			levelColBaseX = levelTable[levelId].colBaseX;
 			levelColBaseZ = levelTable[levelId].colBaseZ;
@@ -534,18 +600,6 @@ void gm_play_disp_level() {
 	gSPMatrix(dlPtr++,OS_K0_TO_PHYSICAL(&dynPtr->mLevelRot),G_MTX_MODELVIEW|G_MTX_MUL |G_MTX_NOPUSH);
 	gSPMatrix(dlPtr++,OS_K0_TO_PHYSICAL(&dynPtr->mLevelScl),G_MTX_MODELVIEW|G_MTX_MUL |G_MTX_NOPUSH);
 	//Draw level
-	gDPSetCycleType(dlPtr++,G_CYC_1CYCLE);
-	gSPClearGeometryMode(dlPtr++,0xFFFFFFFF);
-	gSPSetGeometryMode(dlPtr++,G_LIGHTING|G_ZBUFFER|G_SHADE|G_SHADING_SMOOTH|G_CULL_BACK);
-	gDPSetRenderMode(dlPtr++,G_RM_AA_ZB_OPA_SURF,G_RM_AA_ZB_OPA_SURF2);
-	gDPSetColorDither(dlPtr++,G_CD_BAYER);
-	gDPSetCombineMode(dlPtr++,G_CC_MODULATERGBA,G_CC_MODULATERGBA);
-	gDPSetTexturePersp(dlPtr++,G_TP_PERSP);
-	gDPSetTextureLOD(dlPtr++,G_TL_TILE);
-	gDPSetTextureFilter(dlPtr++,G_TF_POINT);
-	gDPSetTextureConvert(dlPtr++,G_TC_FILT);
-	gDPSetTextureLUT(dlPtr++,G_TT_NONE);
-	gSPTexture(dlPtr++,0xFFFF,0xFFFF,0,G_TX_RENDERTILE,G_ON);
 	if(levelGfx!=NULL) gSPDisplayList(dlPtr++,OS_K0_TO_PHYSICAL(levelGfx));
 }
 void gm_play_disp_objs() {
@@ -588,11 +642,12 @@ void gm_play_disp() {
 	//Init display
 	graphics_init();
 	graphics_clear();
+	graphics_setup();
 	graphics_view(eye,center,up);
 	//Draw level
 	gm_play_disp_level();
 	//Draw objects
 	gm_play_disp_objs();
 	//End display
-	graphics_end();
+	graphics_end(NU_SC_SWAPBUFFER);
 }

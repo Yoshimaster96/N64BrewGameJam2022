@@ -38,8 +38,10 @@ extern u8 bufferId;
 //Functions
 void graphics_init();
 void graphics_clear();
+void graphics_setup();
 void graphics_view(float* camEye,float* camCenter,float* camUp);
-void graphics_rotate(Mtx * m,float x,float y,float z);
-void graphics_end();
+void graphics_rotate(Mtx* m,float x,float y,float z);
+void graphics_end(u32 flag);
+void graphics_end_deb_con(u32 flag);
 
 #endif
