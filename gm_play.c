@@ -23,6 +23,7 @@ typedef struct {
 	float scl[3];
 	//Movement
 	float vel[3];
+	u8 onGround;
 	//Graphics
 	Gfx * gfx;
 	//Animation
@@ -36,6 +37,7 @@ TObject * playerObject;
 TObject * heldObject;
 int frenzyMode;
 u8 frenzyFlags[7];
+u8 animTaskTimer;
 //Level
 typedef struct {
 	//Graphics
@@ -187,16 +189,19 @@ void map_collide(int idx) {
 		objects[idx].vel[1] -= 2.f;
 		objects[idx].rot[0] = 0.f;
 		objects[idx].rot[2] = 0.f;
+		objects[idx].onGround = 0;
 	}
 	else if((sy1-sy0)>24) {
 		//Floor above
 		objects[idx].vel[1] = 0.f;
+		objects[idx].onGround = 1;
 	}
 	else {
 		//Floor OK
 		objects[idx].pos[1] = (float)sy1;
 		sy0 = sy1;
 		objects[idx].vel[1] = 0.f;
+		objects[idx].onGround = 1;
 	}
 	//Check wall collisions
 	//Check right
@@ -296,7 +301,7 @@ void char_proc_anim(int idx) {
 	//Get animation info
 	viewIdx = objects[idx].id;
 	viewAnim = objects[idx].animId;
-	i = (bufferId+((objects[idx].param&0xF)*GFX_GTASK_NUM));
+	i = (bufferId+((objects[idx].param&7)*GFX_GTASK_NUM));
 	nVtx = charAnimTable[viewIdx].nVtx;
 	nGfx = charAnimTable[viewIdx].nGfx;
 	vSrc = charAnimTable[viewIdx].vSrc;
@@ -323,12 +328,12 @@ void char_proc_anim(int idx) {
 			gDst[i].words.w1 += dv;
 		}
 	}
+	//Set as output
+	objects[idx].gfx = gDst;
 	//Update animation timer
 	objects[idx].animFrame += charAnimTable[viewIdx].anims[viewAnim].animSpeed;
 	i = charAnimTable[viewIdx].anims[viewAnim].frameCount<<8;
 	if(objects[idx].animFrame>=i) objects[idx].animFrame -= i;
-	//Set as output
-	objects[idx].gfx = gDst;
 }
 //Path evaluate
 void path_evaluate(int idx) {
@@ -500,11 +505,11 @@ void proc_obj_player(int idx) {
 		if(objects[idx].animFrame==0x0400) {
 			//Calculate target position
 			heldObject->pos[0] = objects[idx].pos[0]+(256.f*sin(objects[idx].rot[1]));
-			heldObject->pos[1] = objects[idx].pos[1];
+			heldObject->pos[1] = objects[idx].pos[1]+24.f;
 			heldObject->pos[2] = objects[idx].pos[2]+(256.f*cos(objects[idx].rot[1]));
 			heldObject->rot[1] = objects[idx].rot[1];
 			heldObject->vel[0] = 32.f*sin(objects[idx].rot[1]);
-			heldObject->vel[1] = 0.f;
+			heldObject->vel[1] = 16.f;
 			heldObject->vel[2] = 32.f*cos(objects[idx].rot[1]);
 			heldObject->state = 3;
 			heldObject = NULL;
@@ -546,58 +551,240 @@ void proc_obj_player(int idx) {
 		//Set next state
 		objects[idx].state = 0;
 	}
+	//State 0x09: Death
+	else if(objects[idx].state==9) {
+		//Set game mode
+		gameMode = 2;
+		gameSubmode = 0;
+		nuGfxFuncRemove();
+	}
+	//State 0x08: Death init
+	else if(objects[idx].state==8) {
+		//Set next state
+		objects[idx].state = 9;
+	}
+	//State 0x0B: Win
+	else if(objects[idx].state==11) {
+		//Set game mode
+		gameMode = 3;
+		gameSubmode = 0;
+		nuGfxFuncRemove();
+	}
+	//State 0x0A: Win init
+	else if(objects[idx].state==10) {
+		//Set next state
+		objects[idx].state = 11;
+	}
 }
 //Ghost
+const float enemyMoveSpeedTable[8] = {
+	4.0f,4.5f,
+	5.0f,5.5f,
+	6.0f,6.5f,
+	7.0f,7.5f,
+};
+void proc_obj_enemy_sub(int idx,Gfx* gfx) {
+	int i;
+	float di,d2;
+	float tx,tz;
+	//State 0x00: Idle
+	if(objects[idx].state==0) {
+		//Path follow type
+		if(objects[idx].param&0x80) {
+			//Init path
+			objects[idx].pathId = objects[idx].param&0xF;
+			objects[idx].pathFrame = 0;
+			//Set next state
+			objects[idx].animId = 1;
+			objects[idx].animFrame = 0;
+			objects[idx].state = 1;
+		}
+		//Chasing type
+		else {
+			objects[idx].pathFrame++;
+			if(objects[idx].pathFrame>=objects[idx].pathId) {
+				//Set random timer
+				objects[idx].pathId = 0x0040+(rand()&0x003F);
+				objects[idx].pathFrame = 0;
+				//Get random float from 0 to 1
+				i = 0x3F800000|((rand()&0x7FFF)<<8);
+				di = *(float*)&i;
+				di -= 1.f;
+				//Set random direction
+				di = (di*6.283185f)-3.141596f;
+				objects[idx].rot[1] = di;
+				objects[idx].vel[0] = enemyMoveSpeedTable[frenzyMode]*sin(di);
+				objects[idx].vel[2] = enemyMoveSpeedTable[frenzyMode]*cos(di);
+				//Set animation
+				objects[idx].animId = 1;
+				objects[idx].animFrame = 0;
+				//Set next state
+				objects[idx].state = 1;
+			}
+		}
+	}
+	//State 0x01: Moving
+	else if(objects[idx].state==1) {
+		//Path follow type
+		if(objects[idx].param&0x80) {
+			//Move along path
+			path_evaluate(idx);
+			objects[idx].pathFrame++;
+			//Check if at end
+			if(objects[idx].pathFrame>=levelPaths[objects[idx].pathId].length) {
+				objects[idx].pathFrame = 0;
+			}
+		}
+		//Chasing type
+		else {
+			objects[idx].pathFrame++;
+			if(objects[idx].pathFrame>=objects[idx].pathId) {
+				//Set random timer
+				objects[idx].pathId = 0x0040+(rand()&0x003F);
+				objects[idx].pathFrame = 0;
+				//Set random direction
+				objects[idx].vel[0] = 0.f;
+				objects[idx].vel[2] = 0.f;
+				//Set animation
+				objects[idx].animId = 0;
+				objects[idx].animFrame = 0;
+				//Set next state
+				objects[idx].state = 0;
+			}
+		}
+	}
+	//State 0x02: Chasing
+	else if(objects[idx].state==2) {
+		tx = playerObject->pos[0] - objects[idx].pos[0];
+		d2  = tx*tx;
+		tz = playerObject->pos[2] - objects[idx].pos[2];
+		d2 += tz*tz;
+		if(d2>4.0) {
+			di = atan2(tx,tz);
+			objects[idx].rot[1] = di;
+			objects[idx].vel[0] = 2.f*enemyMoveSpeedTable[frenzyMode]*sin(di);
+			objects[idx].vel[2] = 2.f*enemyMoveSpeedTable[frenzyMode]*cos(di);
+		}
+	}
+	//State 0x03: Dead
+	else if(objects[idx].state==3) {
+		objects[idx].pathFrame++;
+		if(objects[idx].pathFrame>=0x0100) {
+			//Reset position
+			objects[idx].pos[0] = objects[idx].homePos[0];
+			objects[idx].pos[1] = objects[idx].homePos[1];
+			objects[idx].pos[2] = objects[idx].homePos[2];
+			//Reset random timer
+			objects[idx].pathId = 0;
+			objects[idx].pathFrame = 0;
+			//Reset animation
+			objects[idx].gfx = gfx;
+			objects[idx].animId = 0;
+			objects[idx].animFrame = 0;
+			//Set next state
+			objects[idx].state = 0;
+		}
+	}
+	if(objects[idx].state!=3) {
+		//Check player/object collision
+		for(i=0; i<OBJ_MAX; i++) {
+			if(objects[i].id==0x00 ||
+			   objects[i].id==0x08 ||
+			   objects[i].id==0x09 ||
+			   objects[i].id==0x0A) {
+				di = objects[i].pos[0] - objects[idx].pos[0];
+				d2  = di*di;
+				di = objects[i].pos[1] - objects[idx].pos[1];
+				d2 += di*di;
+				di = objects[i].pos[2] - objects[idx].pos[2];
+				d2 += di*di;
+				if(d2<(192.f*192.f)) {
+					//Check for player
+					if(objects[i].id==0x00 && playerObject->state<=3) {
+						//Kill player
+						playerObject->state = 8;
+					}
+					//Check for object
+					else if(objects[i].state==3) {
+						//Kill enemy
+						objects[idx].gfx = NULL;
+						objects[idx].state = 3;
+						objects[idx].pathFrame = 0;
+					}
+				}
+			}
+		}
+		//Check to chase player
+		if((objects[idx].param&0x80)==0) {
+			di = playerObject->pos[0] - objects[idx].pos[0];
+			d2  = di*di;
+			di = playerObject->pos[1] - objects[idx].pos[1];
+			d2 += di*di;
+			di = playerObject->pos[2] - objects[idx].pos[2];
+			d2 += di*di;
+			if(d2<(1024.f*1024.f)) {
+				//Set chase state
+				if(objects[idx].state<2) {
+					//Set animation
+					objects[idx].animId = 2;
+					objects[idx].animFrame = 0;
+					//Set next state
+					objects[idx].state = 2;
+				}
+			} else {
+				//Clear chase state
+				if(objects[idx].state>=2) {
+					//Set random timer
+					objects[idx].pathId = 0;
+					objects[idx].pathFrame = 0;
+					//Set animation
+					objects[idx].animId = 0;
+					objects[idx].animFrame = 0;
+					//Set next state
+					objects[idx].state = 0;
+				}
+			}
+		}
+		//Animate character
+		if(objects[idx].state!=3) char_proc_anim(idx);
+		//Apply velocity
+		objects[idx].pos[0] += objects[idx].vel[0];
+		objects[idx].pos[1] += objects[idx].vel[1];
+		objects[idx].pos[2] += objects[idx].vel[2];
+		//Do map collision
+		map_collide(idx);
+	}
+}
 void proc_obj_ghost(int idx) {
 	//Init
 	if(objects[idx].mode==0) {
+		//Frenzy mode check
+		if((objects[idx].param&0x80)==0 && ((objects[idx].param>>4)&7)>frenzyMode) {
+			objects[idx].id = 0xFF;
+			return;
+		}
 		objects[idx].gfx = gfx_chr_ghost;
 		objects[idx].mode = 1;
 		objects[idx].animId = 0;
 		objects[idx].animFrame = 0;
 	}
-	//State 0x00: Idle
-	//TODO
-	//State 0x01: On guard
-	//TODO
-	//State 0x02: Chasing
-	//TODO
-	//State 0x03: Back to home
-	//TODO
-	//Animate character
-	char_proc_anim(idx);
-	//Apply velocity
-	objects[idx].pos[0] += objects[idx].vel[0];
-	objects[idx].pos[1] += objects[idx].vel[1];
-	objects[idx].pos[2] += objects[idx].vel[2];
-	//Do map collision
-	map_collide(idx);
+	proc_obj_enemy_sub(idx,gfx_chr_ghost);
 }
 //Zombie
 void proc_obj_zombie(int idx) {
 	//Init
 	if(objects[idx].mode==0) {
+		//Frenzy mode check
+		if((objects[idx].param&0x80)==0 && ((objects[idx].param>>4)&7)>frenzyMode) {
+			objects[idx].id = 0xFF;
+			return;
+		}
 		objects[idx].gfx = gfx_chr_zombie;
 		objects[idx].mode = 1;
 		objects[idx].animId = 0;
 		objects[idx].animFrame = 0;
 	}
-	//State 0x00: Idle
-	//TODO
-	//State 0x01: On guard
-	//TODO
-	//State 0x02: Chasing
-	//TODO
-	//State 0x03: Back to home
-	//TODO
-	//Animate character
-	char_proc_anim(idx);
-	//Apply velocity
-	objects[idx].pos[0] += objects[idx].vel[0];
-	objects[idx].pos[1] += objects[idx].vel[1];
-	objects[idx].pos[2] += objects[idx].vel[2];
-	//Do map collision
-	map_collide(idx);
+	proc_obj_enemy_sub(idx,gfx_chr_zombie);
 }
 //Button
 const Gfx * buttonGfxTable[2] = {
@@ -605,7 +792,7 @@ const Gfx * buttonGfxTable[2] = {
 	gfx_obj_button2,
 };
 void proc_obj_button(int idx) {
-	int i;
+	int i,j,flag;
 	float di,d2;
 	//Init
 	if(objects[idx].mode==0) {
@@ -614,34 +801,75 @@ void proc_obj_button(int idx) {
 	}
 	//State 0x00: Normal
 	if(objects[idx].state==0) {
-		//Check player/object collision
-		di = playerObject->pos[0] - objects[idx].pos[0];
-		d2  = di*di;
-		di = playerObject->pos[1] - objects[idx].pos[1];
-		d2 += di*di;
-		di = playerObject->pos[2] - objects[idx].pos[2];
-		d2 += di*di;
-		if(d2<(192.f*192.f)) {
-			//Slow down player
-			playerObject->vel[0] *= 0.5f;
-			playerObject->vel[2] *= 0.5f;
-			//Find associated gates
-			for(i=0; i<OBJ_MAX; i++) {
-				if(objects[i].id   ==0x05 &&
-				   (objects[i].param&0x3F)==(objects[idx].param&0x3F)) {
-					//Open gate
-					objects[i].state = 1;
+		for(i=0; i<OBJ_MAX; i++) {
+			//Check player/object collision
+			if(objects[i].id==0x00 ||
+			   objects[i].id==0x08 ||
+			   objects[i].id==0x09 ||
+			   objects[i].id==0x0A) {
+				di = objects[i].pos[0] - objects[idx].pos[0];
+				d2  = di*di;
+				di = objects[i].pos[1] - objects[idx].pos[1];
+				d2 += di*di;
+				di = objects[i].pos[2] - objects[idx].pos[2];
+				d2 += di*di;
+				if(d2<(192.f*192.f)) {
+					//Slow down player
+					if(objects[i].id==0x00) {
+						objects[i].vel[0] *= 0.5f;
+						objects[i].vel[2] *= 0.5f;
+					}
+					//Find associated gates
+					for(j=0; j<OBJ_MAX; j++) {
+						if(objects[j].id   ==0x05 &&
+						   (objects[j].param&0x3F)==(objects[idx].param&0x3F)) {
+							//Open gate
+							if(objects[j].state!=2) objects[j].state = 1;
+						}
+					}
+					//Set button state
+					objects[idx].state = 1;
+					objects[idx].scl[1] = 0.5f;
 				}
 			}
-			//Set button state
-			objects[idx].state = 1;
-			objects[idx].scl[1] = 0.5f;
 		}
 	}
 	//State 0x01: Pressed
 	else if(objects[idx].state==1) {
 		if(objects[idx].param&0x80) {
-			//TODO
+			flag = 0;
+			for(i=0; i<OBJ_MAX; i++) {
+				//Check player/object collision
+				if(objects[i].id==0x00 ||
+				   objects[i].id==0x08 ||
+				   objects[i].id==0x09 ||
+				   objects[i].id==0x0A) {
+					di = objects[i].pos[0] - objects[idx].pos[0];
+					d2  = di*di;
+					di = objects[i].pos[1] - objects[idx].pos[1];
+					d2 += di*di;
+					di = objects[i].pos[2] - objects[idx].pos[2];
+					d2 += di*di;
+					if(d2<(192.f*192.f)) {
+						//Set flag
+						flag = 1;
+					}
+				}
+			}
+			//Check if no collision
+			if(flag==0) {
+				//Find associated gates
+				for(j=0; j<OBJ_MAX; j++) {
+					if(objects[j].id   ==0x05 &&
+					   (objects[j].param&0x3F)==(objects[idx].param&0x3F)) {
+						//Close gate
+						if(objects[j].state!=0) objects[j].state = 3;
+					}
+				}
+				//Set button state
+				objects[idx].state = 0;
+				objects[idx].scl[1] = 1.f;
+			}
 		}
 	}
 }
@@ -711,7 +939,7 @@ void proc_obj_gate(int idx) {
 		//Animate gate
 		objects[idx].pos[1] += 16.f;
 		objects[idx].pathFrame++;
-		if(objects[idx].pathFrame==(768/16)) objects[idx].state = 2;
+		if(objects[idx].pathFrame==(512/16)) objects[idx].state = 2;
 	}
 	//State 0x03: Closing
 	else if(objects[idx].state==3) {
@@ -750,6 +978,11 @@ void proc_obj_carryable_sub(int idx,Gfx* gfx) {
 	float d,d2;
 	//Init
 	if(objects[idx].mode==0) {
+		//Check for treasure
+		if(objects[idx].param&0x80 && frenzyFlags[objects[idx].param&0x7F]) {
+			objects[idx].id = 0xFF;
+			return;
+		}
 		objects[idx].gfx = gfx;
 		objects[idx].mode = 1;
 	}
@@ -809,7 +1042,7 @@ void proc_obj_carryable_sub(int idx,Gfx* gfx) {
 		//Do map collision
 		map_collide(idx);
 		//Set next state
-		if(objects[idx].vel[1]==0.f) objects[idx].state = 0;
+		if(objects[idx].onGround) objects[idx].state = 0;
 	}
 }
 void proc_obj_rock(int idx) {
@@ -915,6 +1148,28 @@ void proc_obj_warp(int idx) {
 		}
 	}
 }
+void proc_obj_goal(int idx) {
+	float di[3];
+	float dia[3];
+	//Init
+	if(objects[idx].mode==0) {
+		objects[idx].gfx = NULL;
+		objects[idx].mode = 1;
+	}
+	//Check player collision
+	if(playerObject->state==0 && frenzyMode!=0) {
+		di[0] = playerObject->pos[0] - objects[idx].pos[0];
+		dia[0] = fabs(di[0]);
+		di[1] = playerObject->pos[1] - objects[idx].pos[1];
+		dia[1] = fabs(di[1]);
+		di[2] = playerObject->pos[2] - objects[idx].pos[2];
+		dia[2] = fabs(di[2]);
+		if(dia[0]<256.f && dia[1]<256.f && dia[2]<256.f) {
+			//Win player
+			playerObject->state = 10;
+		}
+	}
+}
 void (*procObjFuncs[16])(int idx) = {
 	proc_obj_player,	//0x00: Player (slime)
 	NULL,				//0x01: (DUMMY FOR ALIGNMENT)
@@ -931,7 +1186,7 @@ void (*procObjFuncs[16])(int idx) = {
 	proc_obj_tunnel,	//0x0C: Tunnel
 	proc_obj_warp,		//0x0D: Warp
 	NULL,				//0x0E: (DUMMY FOR ALIGNMENT)
-	NULL,				//0x0F: (DUMMY FOR ALIGNMENT)
+	proc_obj_goal,		//0x0F: Goal
 };
 void gm_play_proc_objs() {
 	int i;
@@ -977,6 +1232,7 @@ void gm_play_proc() {
 				objects[i].vel[0] = 0.f;
 				objects[i].vel[1] = 0.f;
 				objects[i].vel[2] = 0.f;
+				objects[i].onGround = 1;
 				objects[i].gfx = NULL;
 				objects[i].animId = 0;
 				objects[i].animFrame = 0;
@@ -988,6 +1244,7 @@ void gm_play_proc() {
 			}
 			playerObject = NULL;
 			heldObject = NULL;
+			animTaskTimer = 0;
 			//Load objects
 			i = 0;
 			j = 0;
@@ -1022,6 +1279,7 @@ void gm_play_proc() {
 			//TODO
 			//Process objects
 			gm_play_proc_objs();
+			animTaskTimer++;
 			break;
 		}
 	}
