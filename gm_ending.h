@@ -6,7 +6,7 @@
 #include <nusys.h>
 #include "bank.h"
 #include "graphics.h"
-//#include "data/graphics/scr_ending.h"
+#include "data/graphics/scr_ending.h"
 
 //Functions
 void gm_ending_disp();

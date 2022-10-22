@@ -17,8 +17,6 @@ typedef struct {
 	u8 param;
 	u8 mode;
 	u8 state;
-	s32 tempsI[8];
-	float tempsF[8];
 	//Transform
 	float pos[3];
 	float rot[3];
@@ -27,9 +25,17 @@ typedef struct {
 	float vel[3];
 	//Graphics
 	Gfx * gfx;
+	//Animation
+	u16 animId,animFrame;
+	u16 pathId,pathFrame;
+	//Processing
+	float homePos[3];
 } TObject;
 TObject objects[OBJ_MAX];
 TObject * playerObject;
+TObject * heldObject;
+int frenzyMode;
+u8 frenzyFlags[7];
 //Level
 typedef struct {
 	//Graphics
@@ -40,26 +46,75 @@ typedef struct {
 	s16 * colData;
 	//Objects
 	TLevelObject * objs;
+	//Paths
+	TLevelPath * paths;
 } TLevel;
 const TLevel levelTable[] = {
-	{gfx_lev_maptest,-0x0800,-0x0800,12,12,col_lev_maptest,obj_lev_maptest},
-	{gfx_lev_objtest,-0x0800,-0x0800,16,16,col_lev_objtest,obj_lev_objtest},
-	//lev_demo
-	//lev_tutorial
-	//lev_a1
-	//lev_a2
-	//lev_b1
-	//lev_b2
-	//lev_b3
-	//lev_c1
-	//lev_c2
-	//lev_midpoint
+	{gfx_lev_maptest,-0x0800,-0x0800,12,12,col_lev_maptest,obj_lev_maptest,NULL           },
+	{gfx_lev_objtest,-0x0800,-0x0800,16,16,col_lev_objtest,obj_lev_objtest,pat_lev_objtest},
+	{gfx_lev_intro  ,-0x0700,-0x1200,17,26,col_lev_intro  ,obj_lev_intro  ,NULL           },
+	{gfx_lev_a1     ,-0x0300,-0x0600, 9,11,col_lev_a1     ,obj_lev_a1     ,pat_lev_a1     },
+	{gfx_lev_a2     ,-0x0300,-0x0600, 9,11,col_lev_a2     ,obj_lev_a2     ,pat_lev_a2     },
+	{gfx_lev_b1     ,-0x0300,-0x0F00, 9,20,col_lev_b1     ,obj_lev_b1     ,NULL           },
+	{gfx_lev_b2     ,-0x0300,-0x0A00, 9,15,col_lev_b2     ,obj_lev_b2     ,NULL           },
+	{gfx_lev_b3     ,-0x0200,-0x0B00, 7,16,col_lev_b3     ,obj_lev_b3     ,NULL           },
+	{gfx_lev_c1     ,-0x0200,-0x0A00, 7,15,col_lev_c1     ,obj_lev_c1     ,NULL           },
+	{gfx_lev_c2     ,-0x0300,-0x0700, 9,12,col_lev_c2     ,obj_lev_c2     ,NULL           },
+	{gfx_lev_c3     ,-0x0400,-0x0600,11,11,col_lev_c3     ,obj_lev_c3     ,NULL           },
+	{gfx_lev_d1     ,-0x0300,-0x0900,10,14,col_lev_d1     ,obj_lev_d1     ,pat_lev_d1     },
+	{gfx_lev_d2     ,-0x0300,-0x0700, 9,12,col_lev_d2     ,obj_lev_d2     ,pat_lev_d2     },
+	{gfx_lev_e1     ,-0x0500,-0x0F00,13,20,col_lev_e1     ,obj_lev_e1     ,NULL           },
+	{gfx_lev_ending ,-0x0800,-0x0B00,19,16,col_lev_ending ,obj_lev_ending ,NULL           },
+	{gfx_lev_tr     ,-0x0300,-0x0400, 9, 9,col_lev_tr     ,obj_lev_tr     ,NULL           },
 };
 int levelId = 0;
+int warpId = 0;
 Gfx * levelGfx;
 s16 levelColBaseX,levelColBaseZ;
 s16 levelColSizeX,levelColSizeZ;
 s16 * levelColData;
+TLevelObject * levelObjects;
+TLevelPath * levelPaths;
+
+typedef struct {
+	TAnimVertex ** frames;
+	u16 frameCount;
+	u16 animSpeed;
+} TAnim;
+TAnim charAnimSlimeTable[] = {
+	{act_chr_slime_idle,	 8,0x0020},
+	{act_chr_slime_move,	 8,0x0040},
+	{act_chr_slime_idle_s,	 8,0x0020},
+	{act_chr_slime_move_s,	 8,0x0040},
+	{act_chr_slime_swallow,	11,0x0080},
+	{act_chr_slime_spit,	11,0x0080},
+};
+TAnim charAnimGhostTable[] = {
+	{act_chr_ghost_idle,	 8,0x0020},
+	{act_chr_ghost_move,	 8,0x0040},
+	{act_chr_ghost_chase,	 8,0x0060},
+};
+TAnim charAnimZombieTable[] = {
+	{act_chr_zombie_idle,	 8,0x0020},
+	{act_chr_zombie_move,	 8,0x0040},
+	{act_chr_zombie_chase,	 8,0x0060},
+};
+typedef struct {
+	TAnim * anims;
+	int nAnims;
+	Vtx * vSrc;
+	Gfx * gSrc;
+	Vtx * vDst;
+	Gfx * gDst;
+	u16 nVtx;
+	u16 nGfx;
+} TCharacter;
+TCharacter charAnimTable[] = {
+	{charAnimSlimeTable ,6,vtx_chr_slime ,gfx_chr_slime ,animVtxBuf_slime ,animGfxBuf_slime ,VTX_BUF_SLIME_SIZE ,GFX_BUF_SLIME_SIZE },
+	{NULL               ,0,NULL          ,NULL          ,NULL             ,NULL             ,0                  ,0                  },
+	{charAnimGhostTable ,3,vtx_chr_ghost ,gfx_chr_ghost ,animVtxBuf_ghost ,animGfxBuf_ghost ,VTX_BUF_GHOST_SIZE ,GFX_BUF_GHOST_SIZE },
+	{charAnimZombieTable,3,vtx_chr_zombie,gfx_chr_zombie,animVtxBuf_zombie,animGfxBuf_zombie,VTX_BUF_ZOMBIE_SIZE,GFX_BUF_ZOMBIE_SIZE},
+};
 
 //Map collision
 const float slopeNormalTable[8][3] = {
@@ -145,7 +200,7 @@ void map_collide(int idx) {
 	}
 	//Check wall collisions
 	//Check right
-	if((sx&0xFF)>0xA0 && objects[idx].vel[0]>0.f) {
+	if((sx&0xFF)>0xA0 && objects[idx].vel[0]>-2.f) {
 		//Bottom right
 		syw0 = map_get_height((sx&~0xFF)+0x0FF,sz+0x48,NULL);
 		syw1 = map_get_height((sx&~0xFF)+0x100,sz+0x48,NULL);
@@ -166,7 +221,7 @@ void map_collide(int idx) {
 		}
 	}
 	//Check left
-	if((sx&0xFF)<0x60 && objects[idx].vel[0]<0.f) {
+	if((sx&0xFF)<0x60 && objects[idx].vel[0]<2.f) {
 		//Bottom left
 		syw0 = map_get_height((sx&~0xFF)-0,sz+0x48,NULL);
 		syw1 = map_get_height((sx&~0xFF)-1,sz+0x48,NULL);
@@ -187,7 +242,7 @@ void map_collide(int idx) {
 		}
 	}
 	//Check bottom
-	if((sz&0xFF)>0xA0 && objects[idx].vel[2]>0.f) {
+	if((sz&0xFF)>0xA0 && objects[idx].vel[2]>-2.f) {
 		//Right bottom
 		syw0 = map_get_height(sx+0x48,(sz&~0xFF)+0x0FF,NULL);
 		syw1 = map_get_height(sx+0x48,(sz&~0xFF)+0x100,NULL);
@@ -208,7 +263,7 @@ void map_collide(int idx) {
 		}
 	}
 	//Check top
-	if((sz&0xFF)<0x60 && objects[idx].vel[2]<0.f) {
+	if((sz&0xFF)<0x60 && objects[idx].vel[2]<2.f) {
 		//Right top
 		syw0 = map_get_height(sx+0x48,(sz&~0xFF)-0,NULL);
 		syw1 = map_get_height(sx+0x48,(sz&~0xFF)-1,NULL);
@@ -229,10 +284,100 @@ void map_collide(int idx) {
 		}
 	}
 }
+//Create animation frame buffer
+void char_proc_anim(int idx) {
+	int viewIdx,viewAnim;
+	Vtx * vSrc,* vDst;
+	Gfx * gSrc,* gDst;
+	int nVtx,nGfx;
+	TAnimVertex * frame;
+	int i;
+	u32 dv;
+	//Get animation info
+	viewIdx = objects[idx].id;
+	viewAnim = objects[idx].animId;
+	i = (bufferId+((objects[idx].param&0xF)*GFX_GTASK_NUM));
+	nVtx = charAnimTable[viewIdx].nVtx;
+	nGfx = charAnimTable[viewIdx].nGfx;
+	vSrc = charAnimTable[viewIdx].vSrc;
+	vDst = &charAnimTable[viewIdx].vDst[i*nVtx];
+	gSrc = charAnimTable[viewIdx].gSrc;
+	gDst = &charAnimTable[viewIdx].gDst[i*nGfx];
+	frame = charAnimTable[viewIdx].anims[viewAnim].frames[objects[idx].animFrame>>8];
+	//Copy buffers
+	memcpy(vDst,vSrc,nVtx*sizeof(Vtx));
+	memcpy(gDst,gSrc,nGfx*sizeof(Gfx));
+	//Offset vertex positions/normals
+	for(i=0; i<nVtx; i++) {
+		vDst[i].n.ob[0] += frame[i].dob[0];
+		vDst[i].n.ob[1] += frame[i].dob[1];
+		vDst[i].n.ob[2] += frame[i].dob[2];
+		vDst[i].n.n[0] = frame[i].n[0];
+		vDst[i].n.n[1] = frame[i].n[1];
+		vDst[i].n.n[2] = frame[i].n[2];
+	}
+	//Adjust vertex load addresses
+	for(i=0; i<nGfx; i++) {
+		if(gDst[i].words.w0>>24 == G_VTX) {
+			dv = ((u32)vDst)-((u32)vSrc);
+			gDst[i].words.w1 += dv;
+		}
+	}
+	//Update animation timer
+	objects[idx].animFrame += charAnimTable[viewIdx].anims[viewAnim].animSpeed;
+	i = charAnimTable[viewIdx].anims[viewAnim].frameCount<<8;
+	if(objects[idx].animFrame>=i) objects[idx].animFrame -= i;
+	//Set as output
+	objects[idx].gfx = gDst;
+}
+//Path evaluate
+void path_evaluate(int idx) {
+	int i;
+	float di,d2;
+	float x0,z0;
+	float dt;
+	TLevelPath * path;
+	//Get path data
+	path = &levelPaths[objects[idx].pathId];
+	//Find segment with point
+	for(i=0; i<(path->nPoints-1); i++) {
+		if(objects[idx].pathFrame>=path->points[i+0].t &&
+		   objects[idx].pathFrame<=path->points[i+1].t) {
+			//Calculate interpolation factor
+			di = ((float)objects[idx].pathFrame)-((float)path->points[i].t);
+			d2 = ((float)path->points[i+1].t)-((float)path->points[i+0].t);
+			dt = di/d2;
+			//Get previous position
+			x0 = objects[idx].pos[0];
+			z0 = objects[idx].pos[2];
+			//Set new position
+			objects[idx].pos[0] = (1.f-dt)*path->points[i+0].pos[0] + dt*path->points[i+1].pos[0];
+			objects[idx].pos[1] = (1.f-dt)*path->points[i+0].pos[1] + dt*path->points[i+1].pos[1];
+			objects[idx].pos[2] = (1.f-dt)*path->points[i+0].pos[2] + dt*path->points[i+1].pos[2];
+			//Set rotation
+			di = objects[idx].pos[0] - x0;
+			d2  = di*di;
+			di = objects[idx].pos[2] - z0;
+			d2 += di*di;
+			if(d2>4.f) {
+				objects[idx].rot[1] = atan2(objects[idx].pos[0]-x0,objects[idx].pos[2]-z0);
+			}
+			break;
+		}
+	}
+}
 
 //Objects process
 //Player (slime)
+const float playerRotTable[4] = {
+	 0.000000f,
+	 1.570796f,
+	 3.141593f,
+	-1.570796f,
+};
 void proc_obj_player(int idx) {
+	int i;
+	float di,d2;
 	s8 sx,sy;
 	float tx,tz;
 	float v2;
@@ -240,34 +385,167 @@ void proc_obj_player(int idx) {
 	if(objects[idx].mode==0) {
 		playerObject = &objects[idx];
 		objects[idx].gfx = gfx_chr_slime;
+		objects[idx].rot[1] = playerRotTable[objects[idx].param&3];
 		objects[idx].mode = 1;
+		objects[idx].animId = 0;
+		objects[idx].animFrame = 0;
+		//Clear parameter for animation!
+		objects[idx].param = 0;
 	}
-	//Calculate target velocity
-	sx = joy1Data.stick_x;
-	if(sx<-64) sx = -64;
-	if(sx> 64) sx =  64;
-	sy = joy1Data.stick_y;
-	if(sy<-64) sy = -64;
-	if(sy> 64) sy =  64;
-	tx =  ((float)sx)/4.f;
-	tz = -((float)sy)/4.f;
-	//Interpolate velocity
-	objects[idx].vel[0] = 0.875f*objects[idx].vel[0] + 0.125f*tx;
-	objects[idx].vel[2] = 0.875f*objects[idx].vel[2] + 0.125f*tz;
-	//Calculate facing direction
-	v2  = objects[idx].vel[0]*objects[idx].vel[0];
-	v2 += objects[idx].vel[2]*objects[idx].vel[2];
-	if(v2>0.001f) {
-		objects[idx].rot[1] = atan2(objects[idx].vel[0],objects[idx].vel[2]);
+	//State 0x00: Normal
+	//State 0x02: Normal (carrying)
+	if(objects[idx].state==0 ||
+	   objects[idx].state==2) {
+		//Calculate target velocity
+		sx = joy1Data.stick_x;
+		if(sx<-64) sx = -64;
+		if(sx> 64) sx =  64;
+		sy = joy1Data.stick_y;
+		if(sy<-64) sy = -64;
+		if(sy> 64) sy =  64;
+		tx =  ((float)sx)/4.f;
+		tz = -((float)sy)/4.f;
+		//Interpolate velocity
+		objects[idx].vel[0] = 0.875f*objects[idx].vel[0] + 0.125f*tx;
+		objects[idx].vel[2] = 0.875f*objects[idx].vel[2] + 0.125f*tz;
+		//Calculate facing direction
+		v2  = objects[idx].vel[0]*objects[idx].vel[0];
+		v2 += objects[idx].vel[2]*objects[idx].vel[2];
+		if(v2>4.f) {
+			objects[idx].rot[1] = atan2(objects[idx].vel[0],objects[idx].vel[2]);
+			if(objects[idx].animId!=(objects[idx].state+1)) {
+				objects[idx].animId = (objects[idx].state+1);
+				objects[idx].animFrame = 0;
+			}
+		} else {
+			if(objects[idx].animId!=(objects[idx].state+0)) {
+				objects[idx].animId = (objects[idx].state+0);
+				objects[idx].animFrame = 0;
+			}
+		}
+		//Swallow/spit object
+		if(joy1ButtonDown&Z_TRIG) {
+			if(objects[idx].state==0) {
+				//Try to swallow object
+				objects[idx].state = 1;
+				objects[idx].animId = 4;
+				objects[idx].animFrame = 0;
+				//Clear held object
+				heldObject = NULL;
+			}
+			else if(objects[idx].state==2) {
+				//Spit object
+				objects[idx].state = 3;
+				objects[idx].animId = 5;
+				objects[idx].animFrame = 0;
+			}
+			//Slow down player
+			playerObject->vel[0] *= 0.5f;
+			playerObject->vel[2] *= 0.5f;
+		}
+		//Animate player
+		char_proc_anim(idx);
+		//Apply velocity
+		objects[idx].pos[0] += objects[idx].vel[0];
+		objects[idx].pos[1] += objects[idx].vel[1];
+		objects[idx].pos[2] += objects[idx].vel[2];
+		//Do map collision
+		map_collide(idx);
 	}
-	//Animate player
-	//TODO
-	//Apply velocity
-	objects[idx].pos[0] += objects[idx].vel[0];
-	objects[idx].pos[1] += objects[idx].vel[1];
-	objects[idx].pos[2] += objects[idx].vel[2];
-	//Do map collision
-	map_collide(idx);
+	//State 0x01: Swallowing
+	else if(objects[idx].state==1) {
+		//Check to grab object
+		if(objects[idx].animFrame==0x0400) {
+			//Calculate target position
+			tx = objects[idx].pos[0]+(192.f*sin(objects[idx].rot[1]));
+			tz = objects[idx].pos[2]+(192.f*cos(objects[idx].rot[1]));
+			//Find object at position
+			for(i=0; i<OBJ_MAX; i++) {
+				if(objects[i].id==0x08 ||
+				   objects[i].id==0x09 ||
+				   objects[i].id==0x0A) {
+					di = objects[i].pos[0] - tx;
+					d2  = di*di;
+					di = objects[i].pos[1] - objects[idx].pos[1];
+					d2 += di*di;
+					di = objects[i].pos[2] - tz;
+					d2 += di*di;
+					if(d2<(96.f*96.f)) {
+						heldObject = &objects[i];
+						heldObject->state = 1;
+						break;
+					}
+				}
+			}
+			if(heldObject==NULL) objects[idx].animId = 5;
+		}
+		//End animation
+		if(objects[idx].animFrame==0x0A00) {
+			if(heldObject!=NULL) {
+				objects[idx].state = 2;
+				objects[idx].animId = 1;
+				objects[idx].animFrame = 0;
+			} else {
+				objects[idx].state = 0;
+				objects[idx].animId = 0;
+				objects[idx].animFrame = 0;
+			}
+		}
+		//Animate player
+		char_proc_anim(idx);
+	}
+	//State 0x03: Spitting
+	else if(objects[idx].state==3) {
+		//Release object
+		if(objects[idx].animFrame==0x0400) {
+			//Calculate target position
+			heldObject->pos[0] = objects[idx].pos[0]+(256.f*sin(objects[idx].rot[1]));
+			heldObject->pos[1] = objects[idx].pos[1];
+			heldObject->pos[2] = objects[idx].pos[2]+(256.f*cos(objects[idx].rot[1]));
+			heldObject->rot[1] = objects[idx].rot[1];
+			heldObject->vel[0] = 32.f*sin(objects[idx].rot[1]);
+			heldObject->vel[1] = 0.f;
+			heldObject->vel[2] = 32.f*cos(objects[idx].rot[1]);
+			heldObject->state = 3;
+			heldObject = NULL;
+		}
+		//End animation
+		if(objects[idx].animFrame==0x0A00) {
+			objects[idx].state = 0;
+			objects[idx].animId = 0;
+			objects[idx].animFrame = 0;
+		}
+		//Animate player
+		char_proc_anim(idx);
+	}
+	//State 0x06: In tunnel
+	else if(objects[idx].state==6) {
+		//Move player along tunnel
+		path_evaluate(idx);
+		objects[idx].pathFrame++;
+		//Check if at end
+		if(objects[idx].pathFrame>=levelPaths[objects[idx].pathId].length) {
+			objects[idx].state = 0;
+			objects[idx].animId = 0;
+			objects[idx].animFrame = 0;
+		}
+	}
+	//State 0x05: Tunnel entering
+	else if(objects[idx].state==5) {
+		//Clear graphics
+		objects[idx].gfx = NULL;
+		//Clear velocity
+		objects[idx].vel[0] = 0.f;
+		objects[idx].vel[1] = 0.f;
+		objects[idx].vel[2] = 0.f;
+		//Set next state
+		objects[idx].state = 6;
+	}
+	//State 0x07: Tunnel exiting
+	else if(objects[idx].state==7) {
+		//Set next state
+		objects[idx].state = 0;
+	}
 }
 //Ghost
 void proc_obj_ghost(int idx) {
@@ -275,8 +553,25 @@ void proc_obj_ghost(int idx) {
 	if(objects[idx].mode==0) {
 		objects[idx].gfx = gfx_chr_ghost;
 		objects[idx].mode = 1;
+		objects[idx].animId = 0;
+		objects[idx].animFrame = 0;
 	}
+	//State 0x00: Idle
 	//TODO
+	//State 0x01: On guard
+	//TODO
+	//State 0x02: Chasing
+	//TODO
+	//State 0x03: Back to home
+	//TODO
+	//Animate character
+	char_proc_anim(idx);
+	//Apply velocity
+	objects[idx].pos[0] += objects[idx].vel[0];
+	objects[idx].pos[1] += objects[idx].vel[1];
+	objects[idx].pos[2] += objects[idx].vel[2];
+	//Do map collision
+	map_collide(idx);
 }
 //Zombie
 void proc_obj_zombie(int idx) {
@@ -284,21 +579,42 @@ void proc_obj_zombie(int idx) {
 	if(objects[idx].mode==0) {
 		objects[idx].gfx = gfx_chr_zombie;
 		objects[idx].mode = 1;
+		objects[idx].animId = 0;
+		objects[idx].animFrame = 0;
 	}
+	//State 0x00: Idle
 	//TODO
+	//State 0x01: On guard
+	//TODO
+	//State 0x02: Chasing
+	//TODO
+	//State 0x03: Back to home
+	//TODO
+	//Animate character
+	char_proc_anim(idx);
+	//Apply velocity
+	objects[idx].pos[0] += objects[idx].vel[0];
+	objects[idx].pos[1] += objects[idx].vel[1];
+	objects[idx].pos[2] += objects[idx].vel[2];
+	//Do map collision
+	map_collide(idx);
 }
 //Button
+const Gfx * buttonGfxTable[2] = {
+	gfx_obj_button1,
+	gfx_obj_button2,
+};
 void proc_obj_button(int idx) {
 	int i;
 	float di,d2;
 	//Init
 	if(objects[idx].mode==0) {
-		objects[idx].gfx = gfx_obj_button;
+		objects[idx].gfx = buttonGfxTable[objects[idx].param>>7];
 		objects[idx].mode = 1;
 	}
 	//State 0x00: Normal
 	if(objects[idx].state==0) {
-		//Check player collision
+		//Check player/object collision
 		di = playerObject->pos[0] - objects[idx].pos[0];
 		d2  = di*di;
 		di = playerObject->pos[1] - objects[idx].pos[1];
@@ -312,7 +628,7 @@ void proc_obj_button(int idx) {
 			//Find associated gates
 			for(i=0; i<OBJ_MAX; i++) {
 				if(objects[i].id   ==0x05 &&
-				   objects[i].param==objects[idx].param) {
+				   (objects[i].param&0x3F)==(objects[idx].param&0x3F)) {
 					//Open gate
 					objects[i].state = 1;
 				}
@@ -322,38 +638,203 @@ void proc_obj_button(int idx) {
 			objects[idx].scl[1] = 0.5f;
 		}
 	}
+	//State 0x01: Pressed
+	else if(objects[idx].state==1) {
+		if(objects[idx].param&0x80) {
+			//TODO
+		}
+	}
 }
 //Gate
-void proc_obj_gate(int idx) {
+const Gfx * gateGfxTable[2] = {
+	gfx_obj_gate1,
+	gfx_obj_gate2,
+};
+const float gateRotTable[2] = {
+	 0.000000f,
+	 1.570796f,
+};
+const u16 gateCheckFlagsTable[2] = {
+	0x070C,0x070D
+};
+void proc_obj_barrier_sub(int idx,u16 checkFlags,float height) {
+	int i;
 	float di[3];
+	for(i=0; i<OBJ_MAX; i++) {
+		//Check character/object collision
+		if((objects[i].id==0x00 && objects[i].state==2) || checkFlags&(1<<objects[i].id)) {
+			di[0] = objects[i].pos[0] - objects[idx].pos[0];
+			di[1] = objects[i].pos[1] - objects[idx].pos[1];
+			di[2] = objects[i].pos[2] - objects[idx].pos[2];
+			//Horizontal Z
+			if(objects[idx].param&0x40) {
+				if(di[2]>(-512.f-96.f) && di[2]<(512.f+96.f) && di[1]>-192.f && di[1]<height) {
+					if(di[0]>0.f && di[0]<192.f) {
+						objects[i].pos[0] = objects[idx].pos[0]+192.f;
+					}
+					else if(di[0]<0.f && di[0]>-192.f) {
+						objects[i].pos[0] = objects[idx].pos[0]-192.f;
+					}
+				}
+			}
+			//Horizontal X
+			else {
+				if(di[0]>(-512.f-96.f) && di[0]<(512.f+96.f) && di[1]>-192.f && di[1]<height) {
+					if(di[2]>0.f && di[2]<192.f) {
+						objects[i].pos[2] = objects[idx].pos[2]+192.f;
+					}
+					else if(di[2]<0.f && di[2]>-192.f) {
+						objects[i].pos[2] = objects[idx].pos[2]-192.f;
+					}
+				}
+			}
+		}
+	}
+}
+void proc_obj_gate(int idx) {
 	//Init
 	if(objects[idx].mode==0) {
-		objects[idx].gfx = gfx_obj_gate;
+		objects[idx].gfx = gateGfxTable[objects[idx].param>>7];
+		objects[idx].rot[1] = gateRotTable[(objects[idx].param>>6)&1];
 		objects[idx].mode = 1;
 	}
 	//State 0x00: Normal
 	if(objects[idx].state==0) {
-		//Check player collision
-		di[0] = playerObject->pos[0] - objects[idx].pos[0];
-		di[1] = playerObject->pos[1] - objects[idx].pos[1];
-		di[2] = playerObject->pos[2] - objects[idx].pos[2];
-		if(di[0]>(-256.f-96.f) && di[0]<(256.f+96.f) && di[1]>-192.f && di[1]<512.f) {
-			if(di[2]>0.f && di[2]<96.f) {
-				playerObject->pos[2] = objects[idx].pos[2]+96.f;
-			}
-			else if(di[2]<0.f && di[2]>-96.f) {
-				playerObject->pos[2] = objects[idx].pos[2]-96.f;
-			}
-		}
+		//Nothing
 	}
-	//State 0x01: Open
-	if(objects[idx].state==1) {
+	//State 0x02: Open
+	if(objects[idx].state==2) {
+		//Nothing
+	}
+	//State 0x01: Opening
+	else if(objects[idx].state==1) {
 		//Animate gate
-		if(objects[idx].tempsI[0]<(768/16)) {
-			objects[idx].pos[1] += 16.f;
-			objects[idx].tempsI[0]++;
+		objects[idx].pos[1] += 16.f;
+		objects[idx].pathFrame++;
+		if(objects[idx].pathFrame==(768/16)) objects[idx].state = 2;
+	}
+	//State 0x03: Closing
+	else if(objects[idx].state==3) {
+		//Animate gate
+		objects[idx].pos[1] -= 16.f;
+		objects[idx].pathFrame--;
+		if(objects[idx].pathFrame==0) objects[idx].state = 0;
+	}
+	proc_obj_barrier_sub(idx,gateCheckFlagsTable[objects[idx].param>>7],768.f);
+}
+//Fence
+void proc_obj_fence(int idx) {
+	//Init
+	if(objects[idx].mode==0) {
+		objects[idx].gfx = gfx_obj_fence;
+		objects[idx].rot[1] = gateRotTable[(objects[idx].param>>6)&1];
+		objects[idx].mode = 1;
+	}
+	proc_obj_barrier_sub(idx,0x070C,256.f);
+}
+//Gap
+void proc_obj_gap(int idx) {
+	//Init
+	if(objects[idx].mode==0) {
+		objects[idx].gfx = gfx_obj_gap;
+		//objects[idx].gfx = NULL;
+		objects[idx].rot[1] = gateRotTable[(objects[idx].param>>6)&1];
+		objects[idx].mode = 1;
+	}
+	proc_obj_barrier_sub(idx,0x000D,256.f);
+}
+//Rock
+void proc_obj_carryable_sub(int idx,Gfx* gfx) {
+	int i;
+	float di[3];
+	float d,d2;
+	//Init
+	if(objects[idx].mode==0) {
+		objects[idx].gfx = gfx;
+		objects[idx].mode = 1;
+	}
+	//State 0x00: Normal
+	if(objects[idx].state==0) {
+		for(i=0; i<OBJ_MAX; i++) {
+			//Check character/object collision
+			if(objects[i].id==0x00 ||
+			   objects[i].id==0x02 ||
+			   objects[i].id==0x03 ||
+			   objects[i].id==0x08 ||
+			   objects[i].id==0x09 ||
+			   objects[i].id==0x0A) {
+				if(i==idx) continue;
+				di[0] = objects[i].pos[0] - objects[idx].pos[0];
+				d2  = di[0]*di[0];
+				di[1] = objects[i].pos[1] - objects[idx].pos[1];
+				d2 += di[1]*di[1];
+				di[2] = objects[i].pos[2] - objects[idx].pos[2];
+				d2 += di[2]*di[2];
+				if(d2<(192.f*192.f)) {
+					//Eject character/object
+					d = sqrt(d2);
+					objects[i].pos[0] = objects[idx].pos[0] + di[0]*192.f/d;
+					objects[i].pos[1] = objects[idx].pos[1] + di[1]*192.f/d;
+					objects[i].pos[2] = objects[idx].pos[2] + di[2]*192.f/d;
+				}
+			}
 		}
 	}
+	//State 0x02: Carried
+	else if(objects[idx].state==2) {
+		//Check for treasure
+		if(objects[idx].param&0x80 && playerObject->state==2) {
+			playerObject->state = 0;
+			playerObject->animId = 0;
+			playerObject->animFrame = 0;
+			frenzyMode++;
+			frenzyFlags[objects[idx].param&0x7F] = 1;
+		}
+	}
+	//State 0x01: Carried begin (swallowing)
+	else if(objects[idx].state==1) {
+		//Clear graphics
+		objects[idx].gfx = NULL;
+		//Set next state
+		objects[idx].state = 2;
+	}
+	//State 0x03: Carried end (spitting)
+	else if(objects[idx].state==3) {
+		//Set graphics
+		objects[idx].gfx = gfx;
+		//Apply velocity
+		objects[idx].pos[0] += objects[idx].vel[0];
+		objects[idx].pos[1] += objects[idx].vel[1];
+		objects[idx].pos[2] += objects[idx].vel[2];
+		//Do map collision
+		map_collide(idx);
+		//Set next state
+		if(objects[idx].vel[1]==0.f) objects[idx].state = 0;
+	}
+}
+void proc_obj_rock(int idx) {
+	proc_obj_carryable_sub(idx,gfx_obj_rock);
+}
+//Key
+const Gfx * keyGfxTable[2] = {
+	gfx_obj_key1,
+	gfx_obj_key2,
+};
+void proc_obj_key(int idx) {
+	proc_obj_carryable_sub(idx,keyGfxTable[objects[idx].param&0x7F]);
+}
+//Gem
+const Gfx * gemGfxTable[7] = {
+	gfx_obj_gem1,
+	gfx_obj_gem2,
+	gfx_obj_gem3,
+	gfx_obj_gem4,
+	gfx_obj_gmet1,
+	gfx_obj_gmet2,
+	gfx_obj_gpearl,
+};
+void proc_obj_gem(int idx) {
+	proc_obj_carryable_sub(idx,gemGfxTable[objects[idx].param&0x7F]);
 }
 //Tunnel
 const Gfx * tunnelGfxTable[3] = {
@@ -372,127 +853,66 @@ void proc_obj_tunnel(int idx) {
 	float dia[3];
 	//Init
 	if(objects[idx].mode==0) {
-		objects[idx].gfx = tunnelGfxTable[objects[idx].param>>2];
+		objects[idx].gfx = tunnelGfxTable[(objects[idx].param>>2)&3];
 		objects[idx].rot[1] = tunnelRotTable[objects[idx].param&3];
 		objects[idx].mode = 1;
 	}
 	//Check player collision
-	di[0] = playerObject->pos[0] - objects[idx].pos[0];
-	dia[0] = fabs(di[0]);
-	di[1] = playerObject->pos[1] - objects[idx].pos[1];
-	dia[1] = fabs(di[1]);
-	di[2] = playerObject->pos[2] - objects[idx].pos[2];
-	dia[2] = fabs(di[2]);
-	if(dia[0]<256.f && dia[1]<256.f && dia[2]<256.f) {
-		//Check if entering
-		if(dia[0]>dia[1] && dia[0]>dia[2]) {
-			if(objects[idx].param==0x01 || objects[idx].param==0x03) {
+	if(playerObject->state==0) {
+		di[0] = playerObject->pos[0] - objects[idx].pos[0];
+		dia[0] = fabs(di[0]);
+		di[1] = playerObject->pos[1] - objects[idx].pos[1];
+		dia[1] = fabs(di[1]);
+		di[2] = playerObject->pos[2] - objects[idx].pos[2];
+		dia[2] = fabs(di[2]);
+		if(dia[0]<256.f && dia[1]<256.f && dia[2]<256.f) {
+			//Check if entering
+			if(dia[0]>dia[1] && dia[0]>dia[2]) {
 				//Check if entering X
-				//TODO
+				if(((objects[idx].param&0xF)==0x01 && joy1Data.stick_x<0) ||
+				   ((objects[idx].param&0xF)==0x03 && joy1Data.stick_x>0)) {
+					playerObject->state = 5;
+					playerObject->pathId = objects[idx].param>>4;
+					playerObject->pathFrame = 0;
+				}
 			}
-		}
-		else if(dia[1]>dia[2]) {
-			//Nothing
-		}
-		else {
-			if(objects[idx].param==0x00 || objects[idx].param==0x02) {
+			else if(dia[1]>dia[2]) {
+				//Nothing
+			}
+			else {
 				//Check if entering Z
-				//TODO
+				if(((objects[idx].param&0xF)==0x00 && joy1Data.stick_y>0) ||
+				   ((objects[idx].param&0xF)==0x02 && joy1Data.stick_y<0)) {
+					playerObject->state = 5;
+					playerObject->pathId = objects[idx].param>>4;
+					playerObject->pathFrame = 0;
+				}
 			}
 		}
 	}
 }
-//Fence
-void proc_obj_fence(int idx) {
-	//Init
-	if(objects[idx].mode==0) {
-		objects[idx].gfx = gfx_obj_fence;
-		objects[idx].mode = 1;
-	}
-}
-//Rock
-void proc_obj_rock(int idx) {
+void proc_obj_warp(int idx) {
 	float di[3];
-	float d,d2;
+	float dia[3];
 	//Init
 	if(objects[idx].mode==0) {
-		objects[idx].gfx = gfx_obj_rock;
+		objects[idx].gfx = NULL;
 		objects[idx].mode = 1;
 	}
 	//Check player collision
-	di[0] = playerObject->pos[0] - objects[idx].pos[0];
-	d2  = di[0]*di[0];
-	di[1] = playerObject->pos[1] - objects[idx].pos[1];
-	d2 += di[1]*di[1];
-	di[2] = playerObject->pos[2] - objects[idx].pos[2];
-	d2 += di[2]*di[2];
-	if(d2<(192.f*192.f)) {
-		//Eject player
-		d = sqrt(d2);
-		playerObject->pos[0] = objects[idx].pos[0] + di[0]*192.f/d;
-		playerObject->pos[1] = objects[idx].pos[1] + di[1]*192.f/d;
-		playerObject->pos[2] = objects[idx].pos[2] + di[2]*192.f/d;
-	}
-}
-//Key
-const Gfx * keyGfxTable[2] = {
-	gfx_obj_key1,
-	gfx_obj_key2,
-};
-void proc_obj_key(int idx) {
-	float di[3];
-	float d,d2;
-	//Init
-	if(objects[idx].mode==0) {
-		objects[idx].gfx = keyGfxTable[objects[idx].param];
-		objects[idx].mode = 1;
-	}
-	//Check player collision
-	di[0] = playerObject->pos[0] - objects[idx].pos[0];
-	d2  = di[0]*di[0];
-	di[1] = playerObject->pos[1] - objects[idx].pos[1];
-	d2 += di[1]*di[1];
-	di[2] = playerObject->pos[2] - objects[idx].pos[2];
-	d2 += di[2]*di[2];
-	if(d2<(192.f*192.f)) {
-		//Eject player
-		d = sqrt(d2);
-		playerObject->pos[0] = objects[idx].pos[0] + di[0]*192.f/d;
-		playerObject->pos[1] = objects[idx].pos[1] + di[1]*192.f/d;
-		playerObject->pos[2] = objects[idx].pos[2] + di[2]*192.f/d;
-	}
-}
-//Gem
-const Gfx * gemGfxTable[7] = {
-	gfx_obj_gem1,
-	gfx_obj_gem2,
-	gfx_obj_gem3,
-	gfx_obj_gem4,
-	gfx_obj_gmet1,
-	gfx_obj_gmet2,
-	gfx_obj_gpearl,
-};
-void proc_obj_gem(int idx) {
-	float di[3];
-	float d,d2;
-	//Init
-	if(objects[idx].mode==0) {
-		objects[idx].gfx = gemGfxTable[objects[idx].param];
-		objects[idx].mode = 1;
-	}
-	//Check player collision
-	di[0] = playerObject->pos[0] - objects[idx].pos[0];
-	d2  = di[0]*di[0];
-	di[1] = playerObject->pos[1] - objects[idx].pos[1];
-	d2 += di[1]*di[1];
-	di[2] = playerObject->pos[2] - objects[idx].pos[2];
-	d2 += di[2]*di[2];
-	if(d2<(192.f*192.f)) {
-		//Eject player
-		d = sqrt(d2);
-		playerObject->pos[0] = objects[idx].pos[0] + di[0]*192.f/d;
-		playerObject->pos[1] = objects[idx].pos[1] + di[1]*192.f/d;
-		playerObject->pos[2] = objects[idx].pos[2] + di[2]*192.f/d;
+	if(playerObject->state==0) {
+		di[0] = playerObject->pos[0] - objects[idx].pos[0];
+		dia[0] = fabs(di[0]);
+		di[1] = playerObject->pos[1] - objects[idx].pos[1];
+		dia[1] = fabs(di[1]);
+		di[2] = playerObject->pos[2] - objects[idx].pos[2];
+		dia[2] = fabs(di[2]);
+		if(dia[0]<256.f && dia[1]<256.f && dia[2]<256.f) {
+			//Warp player
+			levelId = objects[idx].param&0x3F;
+			warpId = objects[idx].param>>6;
+			gameSubmode = 0;
+		}
 	}
 }
 void (*procObjFuncs[16])(int idx) = {
@@ -502,14 +922,14 @@ void (*procObjFuncs[16])(int idx) = {
 	proc_obj_zombie,	//0x03: Zombie
 	proc_obj_button,	//0x04: Button
 	proc_obj_gate,		//0x05: Gate
-	proc_obj_tunnel,	//0x06: Tunnel
-	proc_obj_fence,		//0x07: Fence
+	proc_obj_fence,		//0x06: Fence
+	proc_obj_gap,		//0x07: Gap
 	proc_obj_rock,		//0x08: Rock
 	proc_obj_key,		//0x09: Key
 	proc_obj_gem,		//0x0A: Gem
 	NULL,				//0x0B: (DUMMY FOR ALIGNMENT)
-	NULL,				//0x0C: (DUMMY FOR ALIGNMENT)
-	NULL,				//0x0D: (DUMMY FOR ALIGNMENT)
+	proc_obj_tunnel,	//0x0C: Tunnel
+	proc_obj_warp,		//0x0D: Warp
 	NULL,				//0x0E: (DUMMY FOR ALIGNMENT)
 	NULL,				//0x0F: (DUMMY FOR ALIGNMENT)
 };
@@ -529,7 +949,6 @@ void gm_play_proc() {
 		//Init
 		case 0: {
 			//Load banks
-			bank_load(1);
 			bank_load(levelId+4);
 			//Load level
 			levelGfx = levelTable[levelId].gfx;
@@ -538,16 +957,14 @@ void gm_play_proc() {
 			levelColSizeX = levelTable[levelId].colSizeX;
 			levelColSizeZ = levelTable[levelId].colSizeZ;
 			levelColData = levelTable[levelId].colData;
+			levelObjects = levelTable[levelId].objs;
+			levelPaths = levelTable[levelId].paths;
 			//Clear objects
 			for(i=0; i<OBJ_MAX; i++) {
 				objects[i].id    = 0xFF;
 				objects[i].param = 0x00;
 				objects[i].mode  = 0x00;
 				objects[i].state = 0x00;
-				for(j=0; j<8; j++) {
-					objects[i].tempsI[j] = 0;
-					objects[i].tempsF[j] = 0.f;
-				}
 				objects[i].pos[0] = 0.f;
 				objects[i].pos[1] = 0.f;
 				objects[i].pos[2] = 0.f;
@@ -561,18 +978,40 @@ void gm_play_proc() {
 				objects[i].vel[1] = 0.f;
 				objects[i].vel[2] = 0.f;
 				objects[i].gfx = NULL;
+				objects[i].animId = 0;
+				objects[i].animFrame = 0;
+				objects[i].pathId = 0;
+				objects[i].pathFrame = 0;
+				objects[i].homePos[0] = 0.f;
+				objects[i].homePos[1] = 0.f;
+				objects[i].homePos[2] = 0.f;
 			}
+			playerObject = NULL;
+			heldObject = NULL;
 			//Load objects
 			i = 0;
+			j = 0;
 			while(1) {
-				objects[i].id     = levelTable[levelId].objs[i].id;
-				if(objects[i].id==0xFF) break;
-				if(objects[i].id==0x00) playerObject = &objects[i];
-				objects[i].param  = levelTable[levelId].objs[i].param;
-				objects[i].pos[0] = levelTable[levelId].objs[i].pos[0];
-				objects[i].pos[1] = levelTable[levelId].objs[i].pos[1];
-				objects[i].pos[2] = levelTable[levelId].objs[i].pos[2];
+				objects[j].id     = levelTable[levelId].objs[i].id;
+				if(objects[j].id==0xFF) break;
+				if(objects[j].id==0x00) {
+					//Check warp ID
+					if(warpId!=(levelTable[levelId].objs[i].param>>2)) {
+						i++;
+						continue;
+					}
+					//Set player object
+					playerObject = &objects[j];
+				}
+				objects[j].param  = levelTable[levelId].objs[i].param;
+				objects[j].homePos[0] = levelTable[levelId].objs[i].pos[0];
+				objects[j].homePos[1] = levelTable[levelId].objs[i].pos[1];
+				objects[j].homePos[2] = levelTable[levelId].objs[i].pos[2];
+				objects[j].pos[0] = levelTable[levelId].objs[i].pos[0];
+				objects[j].pos[1] = levelTable[levelId].objs[i].pos[1];
+				objects[j].pos[2] = levelTable[levelId].objs[i].pos[2];
 				i++;
+				j++;
 			}
 			gameSubmode = 1;
 			break;
@@ -624,19 +1063,21 @@ void gm_play_disp() {
 	float up[3];
 	//Setup camera position
 	eye[0] = 0.f;
-	eye[1] = 1024.f;
-	eye[2] = 1024.f;
+	eye[1] = 2048.f;
+	eye[2] = 0.f;
 	center[0] = 0.f;
 	center[1] = 0.f;
 	center[2] = 0.f;
-	up[0] =  0.000000f;
-	up[1] =  0.707107f;
-	up[2] = -0.707107f;
+	up[0] =  0.f;
+	up[1] =  0.f;
+	up[2] = -1.f;
 	//Focus on player
 	if(playerObject!=NULL) {
 		eye[0] = playerObject->pos[0];
-		eye[2] = playerObject->pos[2]+1024.f;
+		eye[1] = playerObject->pos[1]+2048.f;
+		eye[2] = playerObject->pos[2];
 		center[0] = playerObject->pos[0];
+		center[1] = playerObject->pos[1];
 		center[2] = playerObject->pos[2];
 	}
 	//Init display

@@ -74,6 +74,7 @@ void gm_debug(int pendingGfx) {
 void mainproc() {
 	//Init banks
 	bank_init();
+	bank_load(1);
 	//Init GFX
 	nuGfxInit();
 	//Init controller

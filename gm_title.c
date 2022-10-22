@@ -7,6 +7,12 @@ extern u16 joy1ButtonPrev,joy1ButtonDown,joy1ButtonUp;
 volatile extern int gameMode;
 extern int gameSubmode;
 
+//gm_play.c
+extern int levelId;
+extern int warpId;
+extern int frenzyMode;
+extern u8 frenzyFlags[7];
+
 /////////////////////
 //PROCESS FUNCTIONS//
 /////////////////////
@@ -21,11 +27,6 @@ void gm_title_proc() {
 		}
 		//Main loop
 		case 1: {
-			//TODO
-			break;
-		}
-		//Wait
-		case 2: {
 			//TODO
 			break;
 		}

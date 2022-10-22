@@ -6,6 +6,7 @@
 #include <nusys.h>
 
 //Variables
-extern Gfx gfx_obj_button[];
+extern Gfx gfx_obj_button1[];
+extern Gfx gfx_obj_button2[];
 
 #endif

@@ -7,6 +7,10 @@ extern u16 joy1ButtonPrev,joy1ButtonDown,joy1ButtonUp;
 volatile extern int gameMode;
 extern int gameSubmode;
 
+//gm_play.c
+extern int frenzyMode;
+extern u8 frenzyFlags[7];
+
 /////////////////////
 //PROCESS FUNCTIONS//
 /////////////////////

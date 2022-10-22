@@ -6,7 +6,7 @@
 #include <nusys.h>
 #include "bank.h"
 #include "graphics.h"
-//#include "data/graphics/scr_title.h"
+#include "data/graphics/scr_title.h"
 
 //Functions
 void gm_title_disp();

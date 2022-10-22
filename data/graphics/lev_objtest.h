@@ -10,5 +10,6 @@
 extern Gfx gfx_lev_objtest[];
 extern s16 col_lev_objtest[];
 extern TLevelObject obj_lev_objtest[];
+extern TLevelPath pat_lev_objtest[];
 
 #endif

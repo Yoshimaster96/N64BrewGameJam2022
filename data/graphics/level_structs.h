@@ -13,5 +13,17 @@ typedef struct {
 	//Transform
 	float pos[3];
 } TLevelObject;
+typedef struct {
+	//Point info
+	u16 t;
+	//Transform
+	float pos[3];
+} TLevelPathPoint;
+typedef struct {
+	//Path info
+	u32 nPoints;
+	u16 length;
+	TLevelPathPoint * points;
+} TLevelPath;
 
 #endif

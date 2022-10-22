@@ -6,7 +6,7 @@
 #include <nusys.h>
 #include "bank.h"
 #include "graphics.h"
-//#include "data/graphics/scr_over.h"
+#include "data/graphics/scr_over.h"
 
 //Functions
 void gm_over_disp();

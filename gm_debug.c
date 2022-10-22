@@ -9,6 +9,7 @@ extern int gameSubmode;
 
 //gm_play.c
 extern int levelId;
+extern int warpId;
 
 /////////////////////
 //PROCESS FUNCTIONS//
@@ -25,16 +26,20 @@ typedef struct {
 TTestView testViewLevelTable[] = {
 	{"lev_maptest",	gfx_lev_maptest},
 	{"lev_objtest",	gfx_lev_objtest},
-	//lev_demo
-	//lev_tutorial
-	//lev_a1
-	//lev_a2
-	//lev_b1
-	//lev_b2
-	//lev_b3
-	//lev_c1
-	//lev_c2
-	//lev_midpoint
+	{"lev_intro"  , gfx_lev_intro  },
+	{"lev_a1"     , gfx_lev_a1     },
+	{"lev_a2"     , gfx_lev_a2     },
+	{"lev_b1"     , gfx_lev_b1     },
+	{"lev_b2"     , gfx_lev_b2     },
+	{"lev_b3"     , gfx_lev_b3     },
+	{"lev_c1"     , gfx_lev_c1     },
+	{"lev_c2"     , gfx_lev_c2     },
+	{"lev_c3"     , gfx_lev_c3     },
+	{"lev_d1"     , gfx_lev_d1     },
+	{"lev_d2"     , gfx_lev_d2     },
+	{"lev_e1"     , gfx_lev_e1     },
+	{"lev_ending" , gfx_lev_ending },
+	{"lev_tr"     , gfx_lev_tr     },
 };
 TTestView testViewCharacterTable[] = {
 	{"chr_slime",	gfx_chr_slime},
@@ -42,12 +47,12 @@ TTestView testViewCharacterTable[] = {
 	{"chr_zombie",	gfx_chr_zombie},
 };
 TTestView testViewObjectTable[] = {
-	{"obj_button",	gfx_obj_button},
-	{"obj_gate",	gfx_obj_gate},
-	{"obj_tunnel1",	gfx_obj_tunnel1},
-	{"obj_tunnel2",	gfx_obj_tunnel2},
-	{"obj_tunnel3",	gfx_obj_tunnel3},
+	{"obj_button1",	gfx_obj_button1},
+	{"obj_button2",	gfx_obj_button2},
+	{"obj_gate1",	gfx_obj_gate1},
+	{"obj_gate2",	gfx_obj_gate2},
 	{"obj_fence",	gfx_obj_fence},
+	{"obj_gap",		gfx_obj_gap},
 	{"obj_rock",	gfx_obj_rock},
 	{"obj_key1",	gfx_obj_key1},
 	{"obj_key2",	gfx_obj_key2},
@@ -58,6 +63,9 @@ TTestView testViewObjectTable[] = {
 	{"obj_gmet1",	gfx_obj_gmet1},
 	{"obj_gmet2",	gfx_obj_gmet2},
 	{"obj_gpearl",	gfx_obj_gpearl},
+	{"obj_tunnel1",	gfx_obj_tunnel1},
+	{"obj_tunnel2",	gfx_obj_tunnel2},
+	{"obj_tunnel3",	gfx_obj_tunnel3},
 };
 char * testViewName;
 char * testViewNameAnim;
@@ -77,8 +85,8 @@ TTestAnim testAnimSlimeTable[] = {
 	{"act_move",	act_chr_slime_move,		 8,0x0040},
 	{"act_idle_s",	act_chr_slime_idle_s,	 8,0x0020},
 	{"act_move_s",	act_chr_slime_move_s,	 8,0x0040},
-	{"act_swallow",	act_chr_slime_swallow,	11,0x0040},
-	{"act_spit",	act_chr_slime_spit,		11,0x0040},
+	{"act_swallow",	act_chr_slime_swallow,	11,0x0080},
+	{"act_spit",	act_chr_slime_spit,		11,0x0080},
 };
 TTestAnim testAnimGhostTable[] = {
 	{"act_idle",	act_chr_ghost_idle,		 8,0x0020},
@@ -184,10 +192,9 @@ void gm_debug_proc() {
 	switch(gameSubmode) {
 		//Init
 		case 0: {
-			//Load bank
-			bank_load(1);
 			//Init menu
 			levelId = 0;
+			warpId = 0;
 			cursorPos = 0;
 			testViewName = NULL;
 			testViewGfx  = NULL;

@@ -38,18 +38,23 @@ u16 tex_obj_fence[] = {
 
 //Vertices
 Vtx vtx_obj_fence[] = {
-    {-256, 0, 0, 0, 0, 2048, 0, 0, 127, 255},
-    {256, 0, 0, 0, 4096, 2048, 0, 0, 127, 255},
-    {256, 256, 0, 0, 4096, 0, 0, 0, 127, 255},
-    {-256, 256, 0, 0, 0, 0, 0, 0, 127, 255},
+    {-512, 0, 0, 0, 0, 2048, 0, 0, 127, 255},
+    {512, 0, 0, 0, 8192, 2048, 0, 0, 127, 255},
+    {512, 256, 0, 0, 8192, 0, 0, 0, 127, 255},
+    {-512, 256, 0, 0, 0, 0, 0, 0, 127, 255},
+    {512, 0, 0, 0, 0, 2048, 0, 0, -127, 255},
+    {-512, 0, 0, 0, 8192, 2048, 0, 0, -127, 255},
+    {-512, 256, 0, 0, 8192, 0, 0, 0, -127, 255},
+    {512, 256, 0, 0, 0, 0, 0, 0, -127, 255},
 };
 
 //Display list
 Gfx gfx_obj_fence[] = {
     gsDPSetRenderMode(G_RM_AA_ZB_XLU_SURF,G_RM_AA_ZB_XLU_SURF2),
     gsDPLoadTextureBlock(tex_obj_fence, G_IM_FMT_RGBA, G_IM_SIZ_16b, 8, 32, 0, G_TX_WRAP|G_TX_NOMIRROR, G_TX_WRAP|G_TX_NOMIRROR, 3, 5, G_TX_NOLOD, G_TX_NOLOD),
-    gsSPVertex(&vtx_obj_fence[0], 4, 0),
+    gsSPVertex(&vtx_obj_fence[0], 8, 0),
     gsSP2Triangles(0, 1, 2, 0, 0, 2, 3, 0),
+    gsSP2Triangles(4, 5, 6, 0, 4, 6, 7, 0),
     gsDPPipeSync(),
     gsDPSetRenderMode(G_RM_AA_ZB_OPA_SURF,G_RM_AA_ZB_OPA_SURF2),
     gsSPEndDisplayList(),

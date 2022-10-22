@@ -47,27 +47,29 @@ beginseg
 endseg*/
 
 //Common and mode graphics
-/*beginseg
+beginseg
 	name "gm_title"
 	flags OBJECT
 	address 0x80180000
 	include "data/graphics/scr_title.o"
-endseg*/
+endseg
 beginseg
 	name "gm_play"
 	flags OBJECT
-	address 0x80180000
+	address 0x80200000
 	include "data/graphics/chr_slime.o"
 	include "data/graphics/chr_ghost.o"
 	include "data/graphics/chr_zombie.o"
 	include "data/graphics/tex_chr_eye.o"
+	include "data/graphics/tex_lev_common.o"
 	include "data/graphics/obj_button.o"
 	include "data/graphics/obj_gate.o"
-	include "data/graphics/obj_tunnel.o"
 	include "data/graphics/obj_fence.o"
+	include "data/graphics/obj_gap.o"
 	include "data/graphics/obj_rock.o"
 	include "data/graphics/obj_key.o"
 	include "data/graphics/obj_gem.o"
+	include "data/graphics/obj_tunnel.o"
 	include "data/graphics/act_chr_slime_idle.o"
 	include "data/graphics/act_chr_slime_move.o"
 	include "data/graphics/act_chr_slime_idle_s.o"
@@ -81,18 +83,18 @@ beginseg
 	include "data/graphics/act_chr_zombie_move.o"
 	include "data/graphics/act_chr_zombie_chase.o"
 endseg
-/*beginseg
+beginseg
 	name "gm_over"
 	flags OBJECT
 	address 0x80180000
 	include "data/graphics/scr_over.o"
-endseg*/
-/*beginseg
+endseg
+beginseg
 	name "gm_ending"
 	flags OBJECT
 	address 0x80180000
 	include "data/graphics/scr_ending.o"
-endseg*/
+endseg
 
 //Level graphics
 beginseg
@@ -107,6 +109,90 @@ beginseg
 	address 0x80280000
 	include "data/graphics/lev_objtest.o"
 endseg
+beginseg
+	name "lev_intro"
+	flags OBJECT
+	address 0x80280000
+	include "data/graphics/lev_intro.o"
+endseg
+beginseg
+	name "lev_a1"
+	flags OBJECT
+	address 0x80280000
+	include "data/graphics/lev_a1.o"
+endseg
+beginseg
+	name "lev_a2"
+	flags OBJECT
+	address 0x80280000
+	include "data/graphics/lev_a2.o"
+endseg
+beginseg
+	name "lev_b1"
+	flags OBJECT
+	address 0x80280000
+	include "data/graphics/lev_b1.o"
+endseg
+beginseg
+	name "lev_b2"
+	flags OBJECT
+	address 0x80280000
+	include "data/graphics/lev_b2.o"
+endseg
+beginseg
+	name "lev_b3"
+	flags OBJECT
+	address 0x80280000
+	include "data/graphics/lev_b3.o"
+endseg
+beginseg
+	name "lev_c1"
+	flags OBJECT
+	address 0x80280000
+	include "data/graphics/lev_c1.o"
+endseg
+beginseg
+	name "lev_c2"
+	flags OBJECT
+	address 0x80280000
+	include "data/graphics/lev_c2.o"
+endseg
+beginseg
+	name "lev_c3"
+	flags OBJECT
+	address 0x80280000
+	include "data/graphics/lev_c3.o"
+endseg
+beginseg
+	name "lev_d1"
+	flags OBJECT
+	address 0x80280000
+	include "data/graphics/lev_d1.o"
+endseg
+beginseg
+	name "lev_d2"
+	flags OBJECT
+	address 0x80280000
+	include "data/graphics/lev_d2.o"
+endseg
+beginseg
+	name "lev_e1"
+	flags OBJECT
+	address 0x80280000
+	include "data/graphics/lev_e1.o"
+endseg
+beginseg
+	name "lev_ending"
+	flags OBJECT
+	address 0x80280000
+	include "data/graphics/lev_ending.o"
+endseg
+beginseg
+	name "lev_tr"
+	flags OBJECT
+	address 0x80280000
+	include "data/graphics/lev_tr.o"
+endseg
 
 ////////
 //WAVE//
@@ -119,10 +205,24 @@ beginwave
 	//include "bgmtable"
 	//include "sebank"
 	//include "setable"
-	//include "gm_title"
+	include "gm_title"
 	include "gm_play"
-	//include "gm_over"
-	//include "gm_ending"
+	include "gm_over"
+	include "gm_ending"
 	include "lev_maptest"
 	include "lev_objtest"
+	include "lev_intro"
+	include "lev_a1"
+	include "lev_a2"
+	include "lev_b1"
+	include "lev_b2"
+	include "lev_b3"
+	include "lev_c1"
+	include "lev_c2"
+	include "lev_c3"
+	include "lev_d1"
+	include "lev_d2"
+	include "lev_e1"
+	include "lev_ending"
+	include "lev_tr"
 endwave
