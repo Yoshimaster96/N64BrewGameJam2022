@@ -41,6 +41,16 @@ TTestView testViewLevelTable[] = {
 	{"lev_ending" , gfx_lev_ending },
 	{"lev_tr"     , gfx_lev_tr     },
 };
+TTestView testViewScreenTable[] = {
+	{"scr_title" , gfx_scr_title },
+	{"scr_over"  , gfx_scr_over  },
+	{"scr_ending", gfx_scr_ending},
+};
+const int testViewScreenBankTable[3] = {
+	0,
+	2,
+	3,
+};
 TTestView testViewCharacterTable[] = {
 	{"chr_slime",	gfx_chr_slime},
 	{"chr_ghost",	gfx_chr_ghost},
@@ -71,6 +81,7 @@ char * testViewName;
 char * testViewNameAnim;
 Gfx * testViewGfx;
 #define TEST_VIEW_LEV_SIZE (sizeof(testViewLevelTable    )/sizeof(TTestView))
+#define TEST_VIEW_SCR_SIZE (sizeof(testViewScreenTable   )/sizeof(TTestView))
 #define TEST_VIEW_CHR_SIZE (sizeof(testViewCharacterTable)/sizeof(TTestView))
 #define TEST_VIEW_OBJ_SIZE (sizeof(testViewObjectTable   )/sizeof(TTestView))
 
@@ -206,11 +217,11 @@ void gm_debug_proc() {
 			//Move cursor up/down
 			if(joy1ButtonDown&U_JPAD) {
 				cursorPos--;
-				if(cursorPos<0) cursorPos = 4;
+				if(cursorPos<0) cursorPos = 5;
 			}
 			if(joy1ButtonDown&D_JPAD) {
 				cursorPos++;
-				if(cursorPos>4) cursorPos = 0;
+				if(cursorPos>5) cursorPos = 0;
 			}
 			//Select level
 			if(cursorPos==0) {
@@ -276,8 +287,49 @@ void gm_debug_proc() {
 			}
 			break;
 		}
-		//TEST view character init
+		//TEST view screen init
 		case 4: {
+			//Load bank
+			bank_load(0);
+			//Init view
+			viewIdx = 0;
+			eyeRad  = 4096.f;
+			eyeLat  = 0.f;
+			eyeLong = 0.f;
+			testViewName = testViewScreenTable[0].name;
+			testViewGfx  = testViewScreenTable[0].gfx;
+			gameSubmode = 5;
+			break;
+		}
+		//TEST view screen main
+		case 5: {
+			//Control camera
+			gm_debug_proc_eye(16.f);
+			//Select screen
+			if(joy1ButtonDown&L_TRIG) {
+				viewIdx--;
+				if(viewIdx<0) viewIdx = TEST_VIEW_SCR_SIZE-1;
+				testViewName = testViewScreenTable[viewIdx].name;
+				testViewGfx  = testViewScreenTable[viewIdx].gfx;
+				//Load bank
+				bank_load(testViewScreenBankTable[viewIdx]);
+			}
+			if(joy1ButtonDown&R_TRIG) {
+				viewIdx++;
+				if(viewIdx>(TEST_VIEW_SCR_SIZE-1)) viewIdx = 0;
+				testViewName = testViewScreenTable[viewIdx].name;
+				testViewGfx  = testViewScreenTable[viewIdx].gfx;
+				//Load bank
+				bank_load(testViewScreenBankTable[viewIdx]);
+			}
+			//Go back
+			if(joy1ButtonDown&B_BUTTON) {
+				gameSubmode = 0;
+			}
+			break;
+		}
+		//TEST view character init
+		case 6: {
 			//Init view
 			viewIdx = 0;
 			viewAnim = 0;
@@ -289,11 +341,11 @@ void gm_debug_proc() {
 			testViewName = testAnimTable[0].name;
 			testViewNameAnim = testAnimTable[0].anims[0].name;
 			testViewGfx  = testAnimTable[0].gSrc;
-			gameSubmode = 5;
+			gameSubmode = 7;
 			break;
 		}
 		//TEST view character main
-		case 5: {
+		case 7: {
 			//Control camera
 			gm_debug_proc_eye(4.f);
 			//Process animation
@@ -354,7 +406,7 @@ void gm_debug_proc() {
 			break;
 		}
 		//TEST view object init
-		case 6: {
+		case 8: {
 			//Init view
 			viewIdx = 0;
 			eyeRad  = 1024.f;
@@ -362,11 +414,11 @@ void gm_debug_proc() {
 			eyeLong = 0.f;
 			testViewName = testViewObjectTable[0].name;
 			testViewGfx  = testViewObjectTable[0].gfx;
-			gameSubmode = 7;
+			gameSubmode = 9;
 			break;
 		}
 		//TEST view object main
-		case 7: {
+		case 9: {
 			//Control camera
 			gm_debug_proc_eye(4.f);
 			//Select object
@@ -389,17 +441,17 @@ void gm_debug_proc() {
 			break;
 		}
 		//TEST sound test
-		case 8: {
+		case 10: {
 			//Init
 			cursorPos = 0;
 			testViewName = NULL;
 			testViewGfx  = NULL;
 			//TODO
-			gameSubmode = 9;
+			gameSubmode = 11;
 			break;
 		}
 		//TEST sound test
-		case 9: {
+		case 11: {
 			//TODO
 			//Go back
 			if(joy1ButtonDown&B_BUTTON) {
@@ -469,10 +521,12 @@ void gm_debug_disp_menu() {
 			nuDebConTextPos(NU_DEB_CON_WINDOW0,3,4);
 			nuDebConCPuts  (NU_DEB_CON_WINDOW0,"VIEW LEVEL");
 			nuDebConTextPos(NU_DEB_CON_WINDOW0,3,5);
-			nuDebConCPuts  (NU_DEB_CON_WINDOW0,"VIEW CHARACTER");
+			nuDebConCPuts  (NU_DEB_CON_WINDOW0,"VIEW SCREEN");
 			nuDebConTextPos(NU_DEB_CON_WINDOW0,3,6);
-			nuDebConCPuts  (NU_DEB_CON_WINDOW0,"VIEW OBJECT");
+			nuDebConCPuts  (NU_DEB_CON_WINDOW0,"VIEW CHARACTER");
 			nuDebConTextPos(NU_DEB_CON_WINDOW0,3,7);
+			nuDebConCPuts  (NU_DEB_CON_WINDOW0,"VIEW OBJECT");
+			nuDebConTextPos(NU_DEB_CON_WINDOW0,3,8);
 			nuDebConCPuts  (NU_DEB_CON_WINDOW0,"SOUND TEST");
 			//Cursor
 			nuDebConTextPos(NU_DEB_CON_WINDOW0,1,3+cursorPos);

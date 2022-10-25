@@ -298,6 +298,8 @@ void char_proc_anim(int idx) {
 	TAnimVertex * frame;
 	int i;
 	u32 dv;
+	float di[3];
+	float dia[3];
 	//Get animation info
 	viewIdx = objects[idx].id;
 	viewAnim = objects[idx].animId;
@@ -309,27 +311,36 @@ void char_proc_anim(int idx) {
 	gSrc = charAnimTable[viewIdx].gSrc;
 	gDst = &charAnimTable[viewIdx].gDst[i*nGfx];
 	frame = charAnimTable[viewIdx].anims[viewAnim].frames[objects[idx].animFrame>>8];
-	//Copy buffers
-	memcpy(vDst,vSrc,nVtx*sizeof(Vtx));
-	memcpy(gDst,gSrc,nGfx*sizeof(Gfx));
-	//Offset vertex positions/normals
-	for(i=0; i<nVtx; i++) {
-		vDst[i].n.ob[0] += frame[i].dob[0];
-		vDst[i].n.ob[1] += frame[i].dob[1];
-		vDst[i].n.ob[2] += frame[i].dob[2];
-		vDst[i].n.n[0] = frame[i].n[0];
-		vDst[i].n.n[1] = frame[i].n[1];
-		vDst[i].n.n[2] = frame[i].n[2];
-	}
-	//Adjust vertex load addresses
-	for(i=0; i<nGfx; i++) {
-		if(gDst[i].words.w0>>24 == G_VTX) {
-			dv = ((u32)vDst)-((u32)vSrc);
-			gDst[i].words.w1 += dv;
+	//Early out if offscreen
+	di[0] = playerObject->pos[0] - objects[idx].pos[0];
+	dia[0] = fabs(di[0]);
+	di[1] = playerObject->pos[1] - objects[idx].pos[1];
+	dia[1] = fabs(di[1]);
+	di[2] = playerObject->pos[2] - objects[idx].pos[2];
+	dia[2] = fabs(di[2]);
+	if(dia[0]<1280.f && dia[2]<1024.f) {
+		//Copy buffers
+		memcpy(vDst,vSrc,nVtx*sizeof(Vtx));
+		memcpy(gDst,gSrc,nGfx*sizeof(Gfx));
+		//Offset vertex positions/normals
+		for(i=0; i<nVtx; i++) {
+			vDst[i].n.ob[0] += frame[i].dob[0];
+			vDst[i].n.ob[1] += frame[i].dob[1];
+			vDst[i].n.ob[2] += frame[i].dob[2];
+			vDst[i].n.n[0] = frame[i].n[0];
+			vDst[i].n.n[1] = frame[i].n[1];
+			vDst[i].n.n[2] = frame[i].n[2];
 		}
+		//Adjust vertex load addresses
+		for(i=0; i<nGfx; i++) {
+			if(gDst[i].words.w0>>24 == G_VTX) {
+				dv = ((u32)vDst)-((u32)vSrc);
+				gDst[i].words.w1 += dv;
+			}
+		}
+		//Set as output
+		objects[idx].gfx = gDst;
 	}
-	//Set as output
-	objects[idx].gfx = gDst;
 	//Update animation timer
 	objects[idx].animFrame += charAnimTable[viewIdx].anims[viewAnim].animSpeed;
 	i = charAnimTable[viewIdx].anims[viewAnim].frameCount<<8;
@@ -585,7 +596,8 @@ const float enemyMoveSpeedTable[8] = {
 };
 void proc_obj_enemy_sub(int idx,Gfx* gfx) {
 	int i;
-	float di,d2;
+	float di[3];
+	float d,d2;
 	float tx,tz;
 	//State 0x00: Idle
 	if(objects[idx].state==0) {
@@ -608,13 +620,13 @@ void proc_obj_enemy_sub(int idx,Gfx* gfx) {
 				objects[idx].pathFrame = 0;
 				//Get random float from 0 to 1
 				i = 0x3F800000|((rand()&0x7FFF)<<8);
-				di = *(float*)&i;
-				di -= 1.f;
+				d = *(float*)&i;
+				d -= 1.f;
 				//Set random direction
-				di = (di*6.283185f)-3.141596f;
-				objects[idx].rot[1] = di;
-				objects[idx].vel[0] = enemyMoveSpeedTable[frenzyMode]*sin(di);
-				objects[idx].vel[2] = enemyMoveSpeedTable[frenzyMode]*cos(di);
+				d = (d*6.283185f)-3.141596f;
+				objects[idx].rot[1] = d;
+				objects[idx].vel[0] = enemyMoveSpeedTable[frenzyMode]*sin(d);
+				objects[idx].vel[2] = enemyMoveSpeedTable[frenzyMode]*cos(d);
 				//Set animation
 				objects[idx].animId = 1;
 				objects[idx].animFrame = 0;
@@ -660,10 +672,10 @@ void proc_obj_enemy_sub(int idx,Gfx* gfx) {
 		tz = playerObject->pos[2] - objects[idx].pos[2];
 		d2 += tz*tz;
 		if(d2>4.0) {
-			di = atan2(tx,tz);
-			objects[idx].rot[1] = di;
-			objects[idx].vel[0] = 2.f*enemyMoveSpeedTable[frenzyMode]*sin(di);
-			objects[idx].vel[2] = 2.f*enemyMoveSpeedTable[frenzyMode]*cos(di);
+			d = atan2(tx,tz);
+			objects[idx].rot[1] = d;
+			objects[idx].vel[0] = 2.f*enemyMoveSpeedTable[frenzyMode]*sin(d);
+			objects[idx].vel[2] = 2.f*enemyMoveSpeedTable[frenzyMode]*cos(d);
 		}
 	}
 	//State 0x03: Dead
@@ -689,20 +701,32 @@ void proc_obj_enemy_sub(int idx,Gfx* gfx) {
 		//Check player/object collision
 		for(i=0; i<OBJ_MAX; i++) {
 			if(objects[i].id==0x00 ||
+			   objects[i].id==0x02 ||
+			   objects[i].id==0x03 ||
 			   objects[i].id==0x08 ||
 			   objects[i].id==0x09 ||
 			   objects[i].id==0x0A) {
-				di = objects[i].pos[0] - objects[idx].pos[0];
-				d2  = di*di;
-				di = objects[i].pos[1] - objects[idx].pos[1];
-				d2 += di*di;
-				di = objects[i].pos[2] - objects[idx].pos[2];
-				d2 += di*di;
+				if(i==idx) continue;
+				di[0] = objects[i].pos[0] - objects[idx].pos[0];
+				d2  = di[0]*di[0];
+				di[1] = objects[i].pos[1] - objects[idx].pos[1];
+				d2 += di[1]*di[1];
+				di[2] = objects[i].pos[2] - objects[idx].pos[2];
+				d2 += di[2]*di[2];
 				if(d2<(192.f*192.f)) {
 					//Check for player
 					if(objects[i].id==0x00 && playerObject->state<=3) {
 						//Kill player
 						playerObject->state = 8;
+					}
+					//Check for other enemy
+					else if(objects[i].id==0x02 ||
+					        objects[i].id==0x03) {
+						//Eject enemy
+						d = sqrt(d2);
+						objects[i].pos[0] = objects[idx].pos[0] + di[0]*192.f/d;
+						objects[i].pos[1] = objects[idx].pos[1] + di[1]*192.f/d;
+						objects[i].pos[2] = objects[idx].pos[2] + di[2]*192.f/d;
 					}
 					//Check for object
 					else if(objects[i].state==3) {
@@ -716,12 +740,12 @@ void proc_obj_enemy_sub(int idx,Gfx* gfx) {
 		}
 		//Check to chase player
 		if((objects[idx].param&0x80)==0) {
-			di = playerObject->pos[0] - objects[idx].pos[0];
-			d2  = di*di;
-			di = playerObject->pos[1] - objects[idx].pos[1];
-			d2 += di*di;
-			di = playerObject->pos[2] - objects[idx].pos[2];
-			d2 += di*di;
+			di[0] = playerObject->pos[0] - objects[idx].pos[0];
+			d2  = di[0]*di[0];
+			di[1] = playerObject->pos[1] - objects[idx].pos[1];
+			d2 += di[1]*di[1];
+			di[2] = playerObject->pos[2] - objects[idx].pos[2];
+			d2 += di[2]*di[2];
 			if(d2<(1024.f*1024.f)) {
 				//Set chase state
 				if(objects[idx].state<2) {
@@ -964,8 +988,8 @@ void proc_obj_fence(int idx) {
 void proc_obj_gap(int idx) {
 	//Init
 	if(objects[idx].mode==0) {
-		objects[idx].gfx = gfx_obj_gap;
-		//objects[idx].gfx = NULL;
+		//objects[idx].gfx = gfx_obj_gap;
+		objects[idx].gfx = NULL;
 		objects[idx].rot[1] = gateRotTable[(objects[idx].param>>6)&1];
 		objects[idx].mode = 1;
 	}
@@ -1020,8 +1044,11 @@ void proc_obj_carryable_sub(int idx,Gfx* gfx) {
 			playerObject->state = 0;
 			playerObject->animId = 0;
 			playerObject->animFrame = 0;
+			heldObject = NULL;
 			frenzyMode++;
 			frenzyFlags[objects[idx].param&0x7F] = 1;
+			//Set next state
+			objects[idx].state = 4;
 		}
 	}
 	//State 0x01: Carried begin (swallowing)
@@ -1043,6 +1070,10 @@ void proc_obj_carryable_sub(int idx,Gfx* gfx) {
 		map_collide(idx);
 		//Set next state
 		if(objects[idx].onGround) objects[idx].state = 0;
+	}
+	//State 0x04: Dead
+	else if(objects[idx].state==4) {
+		//Nothing
 	}
 }
 void proc_obj_rock(int idx) {

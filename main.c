@@ -23,7 +23,7 @@ void update_input() {
 //////////////
 //GAME MODES//
 //////////////
-volatile int gameMode = 4;
+volatile int gameMode = 0;
 int gameSubmode = 0;
 
 void gm_title(int pendingGfx) {

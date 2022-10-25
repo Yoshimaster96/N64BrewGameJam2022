@@ -5,4 +5,7 @@
 #include <ultra64.h>
 #include <nusys.h>
 
+//Variables
+extern Gfx gfx_scr_title[];
+
 #endif
