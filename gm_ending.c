@@ -14,7 +14,7 @@ extern u8 frenzyFlags[7];
 /////////////////////
 //PROCESS FUNCTIONS//
 /////////////////////
-Gfx * scrEndingGfx;
+Gfx * scrEndingGfx = NULL;
 int animScrEndingTime;
 float animScrEndingScl;
 

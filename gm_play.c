@@ -69,9 +69,9 @@ const TLevel levelTable[] = {
 	{gfx_lev_ending ,-0x0800,-0x0B00,19,16,col_lev_ending ,obj_lev_ending ,NULL           },
 	{gfx_lev_tr     ,-0x0300,-0x0400, 9, 9,col_lev_tr     ,obj_lev_tr     ,NULL           },
 };
-int levelId = 0;
-int warpId = 0;
-Gfx * levelGfx;
+int levelId;
+int warpId;
+Gfx * levelGfx = NULL;
 s16 levelColBaseX,levelColBaseZ;
 s16 levelColSizeX,levelColSizeZ;
 s16 * levelColData;
@@ -565,6 +565,7 @@ void proc_obj_player(int idx) {
 	//State 0x09: Death
 	else if(objects[idx].state==9) {
 		//Set game mode
+		levelGfx = NULL;
 		gameMode = 2;
 		gameSubmode = 0;
 		nuGfxFuncRemove();
@@ -577,6 +578,7 @@ void proc_obj_player(int idx) {
 	//State 0x0B: Win
 	else if(objects[idx].state==11) {
 		//Set game mode
+		levelGfx = NULL;
 		gameMode = 3;
 		gameSubmode = 0;
 		nuGfxFuncRemove();
@@ -1155,6 +1157,7 @@ void proc_obj_tunnel(int idx) {
 		}
 	}
 }
+//Warp
 void proc_obj_warp(int idx) {
 	float di[3];
 	float dia[3];
@@ -1173,12 +1176,14 @@ void proc_obj_warp(int idx) {
 		dia[2] = fabs(di[2]);
 		if(dia[0]<256.f && dia[1]<256.f && dia[2]<256.f) {
 			//Warp player
+			levelGfx = NULL;
 			levelId = objects[idx].param&0x3F;
 			warpId = objects[idx].param>>6;
 			gameSubmode = 0;
 		}
 	}
 }
+//Goal
 void proc_obj_goal(int idx) {
 	float di[3];
 	float dia[3];

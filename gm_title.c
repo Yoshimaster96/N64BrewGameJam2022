@@ -16,7 +16,7 @@ extern u8 frenzyFlags[7];
 /////////////////////
 //PROCESS FUNCTIONS//
 /////////////////////
-Gfx * scrTitleGfx;
+Gfx * scrTitleGfx = NULL;
 
 //Main title process
 void gm_title_proc() {

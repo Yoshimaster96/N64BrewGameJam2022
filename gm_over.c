@@ -14,7 +14,7 @@ extern u8 frenzyFlags[7];
 /////////////////////
 //PROCESS FUNCTIONS//
 /////////////////////
-Gfx * scrOverGfx;
+Gfx * scrOverGfx = NULL;
 int animScrOverTime;
 float animScrOverPosY;
 

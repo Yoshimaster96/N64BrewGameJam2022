@@ -79,7 +79,7 @@ TTestView testViewObjectTable[] = {
 };
 char * testViewName;
 char * testViewNameAnim;
-Gfx * testViewGfx;
+Gfx * testViewGfx = NULL;
 #define TEST_VIEW_LEV_SIZE (sizeof(testViewLevelTable    )/sizeof(TTestView))
 #define TEST_VIEW_SCR_SIZE (sizeof(testViewScreenTable   )/sizeof(TTestView))
 #define TEST_VIEW_CHR_SIZE (sizeof(testViewCharacterTable)/sizeof(TTestView))
@@ -237,6 +237,7 @@ void gm_debug_proc() {
 			//Select menu item
 			if(joy1ButtonDown&A_BUTTON) {
 				if(cursorPos==0) {
+					testViewGfx = NULL;
 					gameMode = 1;
 					gameSubmode = 0;
 					nuGfxFuncRemove();
